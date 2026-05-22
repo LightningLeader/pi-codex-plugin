@@ -191,9 +191,13 @@ For `/pi:rescue` we don't need structured output — the model just talks.
 `state.json` schema: identical, including `config.stopReviewGate`.
 
 `jobs/<id>.json` schema: identical, except:
-- `threadId` → `sessionId` (pi session UUID)
-- additional `sessionFile` (absolute path to the pi session JSONL — needed for
-  resume across host machines / TMPDIR rotation)
+- `threadId` → **`piSessionId`** (pi session UUID). Note: the existing
+  `sessionId` field keeps its codex meaning (the Claude Code session id from
+  `PI_COMPANION_SESSION_ID`, used to scope job listings); to avoid a name
+  collision we use `piSessionId` for pi's own session identifier instead of
+  renaming `threadId` to `sessionId`.
+- additional `piSessionFile` (absolute path to the pi session JSONL — needed
+  for resume across host machines / TMPDIR rotation)
 - delete `turnId` (pi has no per-turn id; cancellation uses the process PID)
 
 ---
