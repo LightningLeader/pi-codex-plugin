@@ -8,20 +8,22 @@
 
 [![Claude Code Plugin](https://img.shields.io/badge/Claude%20Code-plugin-8a2be2)](https://docs.claude.com/en/docs/claude-code/plugins)
 [![Pi Coding Agent](https://img.shields.io/badge/Pi-coding%20agent-0a7d4a)](https://github.com/earendil-works/pi)
-[![DeepSeek](https://img.shields.io/badge/DeepSeek-V4-1f6feb)](https://platform.deepseek.com/)
+[![Model agnostic](https://img.shields.io/badge/Model-agnostic-555)](#pick-your-model)
 [![Discord](https://img.shields.io/badge/Discord-Join-5865F2?logo=discord&logoColor=white)](https://discord.gg/79JF5Atuk)
 
 **English** · [中文](README_CN.md)
 
-External references: [Pi coding agent](https://github.com/earendil-works/pi) · [Pi RPC mode](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/rpc.md) · [DeepSeek API](https://platform.deepseek.com/)
+External references: [Pi coding agent](https://github.com/earendil-works/pi) · [Pi RPC mode](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/rpc.md) · [Pi providers](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/providers.md)
 
-A Claude Code plugin that delegates reviews and coding tasks to the [Pi coding agent](https://github.com/earendil-works/pi), defaulting to DeepSeek V4 (Flash for everyday review, Pro for adversarial review). 1:1 fork of [`codex-plugin-cc`](https://github.com/openai/codex-plugin-cc) with the runtime swapped from Codex to Pi.
+A Claude Code plugin that delegates reviews and coding tasks to the [Pi coding agent](https://github.com/earendil-works/pi). 1:1 fork of [`codex-plugin-cc`](https://github.com/openai/codex-plugin-cc), runtime swapped from Codex to Pi.
+
+**The hard dependency is pi, not any particular LLM.** Pi can be configured for DeepSeek, OpenAI, Anthropic, Google, Ollama, LM Studio, or any OpenAI-compatible endpoint via `~/.pi/agent/models.json`. The plugin defers all model selection to pi unless you override per command.
 
 - **Code review** against the working tree or a branch base, with structured findings
 - **Adversarial review** that challenges the design — not just spell-checks the diff
 - **Task delegation** for diagnoses, refactors, and longer rescues, foreground or background
 - **Background job control** — `status`, `result`, `cancel`, and stop-time review gate
-- **No OAuth** — pi authenticates by API key (`DEEPSEEK_API_KEY`, etc.), no `codex login` needed
+- **No OAuth** — pi authenticates by API key (provider-specific), no `codex login` required
 
 Plays well with [`pi-subagents`](https://github.com/nicobailon/pi-subagents): if installed, it works inside `/pi:rescue` runs without configuration.
 
@@ -34,7 +36,7 @@ Claude Code  ─►  /pi:review · /pi:rescue · /pi:status ...
             pi-companion.mjs (Node)
                     │  one pi --mode rpc subprocess per task
                     ▼
-              Pi coding agent ─► DeepSeek (or any pi-configured provider)
+              Pi coding agent ─► whichever provider/model pi is configured for
                     │
                     ▼
                JSONL events + final assistant message
@@ -47,27 +49,33 @@ Codex's broker layer is gone — Pi is one-conversation-per-process, so the plug
 
 ## Slash commands
 
-| Command | Default model | What it does |
-|---|---|---|
-| `/pi:setup` | — | Verifies `pi` is installed + a provider is configured; toggles the stop-time review gate |
-| `/pi:review` | `deepseek-v4-flash` | Standard code review of local git state |
-| `/pi:adversarial-review` | `deepseek-v4-pro` | Steerable challenge review — questions the approach itself |
-| `/pi:rescue` | user's pi default | Delegate investigation or implementation to a Pi run via the `pi:pi-rescue` subagent |
-| `/pi:status [job-id]` | — | List active / recent Pi jobs in this repository |
-| `/pi:result <job-id>` | — | Show the stored final output for a finished job |
-| `/pi:cancel <job-id>` | — | Terminate a running background job |
+| Command | What it does |
+|---|---|
+| `/pi:setup` | Verifies `pi` is installed + a provider is configured; toggles the stop-time review gate |
+| `/pi:review` | Standard code review of local git state |
+| `/pi:adversarial-review` | Steerable challenge review — questions the approach itself |
+| `/pi:rescue` | Delegate investigation or implementation to a Pi run via the `pi:pi-rescue` subagent |
+| `/pi:status [job-id]` | List active / recent Pi jobs in this repository |
+| `/pi:result <job-id>` | Show the stored final output for a finished job |
+| `/pi:cancel <job-id>` | Terminate a running background job |
+
+Every command accepts `--model <id>` to pin a specific model just for that run. With no `--model` and no env override (see [Pick your model](#pick-your-model)), pi falls back to whatever it has configured by default.
 
 ## Quick Start
 
 ```bash
-# 1. Install pi
+# 1. Install pi (required)
 npm install -g --ignore-scripts @earendil-works/pi-coding-agent
 
-# 2. Provide a provider key (DeepSeek by default)
-export DEEPSEEK_API_KEY=sk-your-key-here
+# 2. Configure a provider — pick one
+export OPENAI_API_KEY=sk-...           # OpenAI
+export ANTHROPIC_API_KEY=sk-ant-...    # Anthropic
+export GOOGLE_API_KEY=...              # Google
+export DEEPSEEK_API_KEY=sk-...         # DeepSeek
+# or run a local model: see https://github.com/earendil-works/pi (Ollama / LM Studio)
 
-# 3. Verify
-pi --list-models deepseek   # should show deepseek-v4-flash and -pro
+# 3. Verify pi sees a model
+pi --list-models | head
 ```
 
 Install the plugin in Claude Code:
@@ -79,51 +87,75 @@ Install the plugin in Claude Code:
 > /pi:setup
 ```
 
-`/pi:setup` returns a readiness report and offers to install Pi for you if it's missing and `npm` is on PATH.
+`/pi:setup` returns a readiness report. If `pi` is missing and `npm` is on PATH, it offers to install it for you.
 
 ## Usage
 
 ```text
 > /pi:review
 > /pi:review --base main
+> /pi:review --model claude-sonnet-4
 > /pi:adversarial-review focus on the new auth middleware
 > /pi:rescue investigate why the Windows CI build is failing
-> /pi:rescue --background refactor src/payments/ to remove the polling loop
+> /pi:rescue --background --model gpt-4o refactor src/payments/
 > /pi:status
 > /pi:status task-mpgyiwb9-e3k641 --wait
 > /pi:result task-mpgyiwb9-e3k641
 > /pi:cancel task-mpgyiwb9-e3k641
 ```
 
-`--effort <off|minimal|low|medium|high|xhigh>` is passed through to Pi via `set_thinking_level`. Models that don't support thinking silently ignore it.
+`--effort <off|minimal|low|medium|high|xhigh>` is passed through to Pi via `set_thinking_level`. Models that do not support thinking silently ignore it (the plugin logs a one-line note to stderr when this happens).
 
-## Configure DeepSeek
+## Pick your model
 
-The minimum config is just an env var — Pi ships built-in DeepSeek models:
+The plugin keeps three layers of model resolution:
+
+| Priority | Source | Example |
+|---|---|---|
+| 1 | `--model <id>` on the slash command | `/pi:review --model gpt-4o` |
+| 2 | Env var (review / adversarial-review only) | `export PI_PLUGIN_REVIEW_MODEL=deepseek-v4-flash`<br>`export PI_PLUGIN_ADVERSARIAL_REVIEW_MODEL=deepseek-v4-pro` |
+| 3 | Pi's own configured default | whatever your `~/.pi/agent/models.json` has, or `/model` last picked in pi TUI |
+
+Layer 1 wins over layer 2 wins over layer 3. **None of the layers are required** — leave them all unset and pi picks for you.
+
+### Suggested settings by provider
+
+These are opinions, not requirements. Pick what fits your latency / cost / quality budget.
+
+| Provider | Everyday review (`/pi:review`) | Adversarial review (`/pi:adversarial-review`) |
+|---|---|---|
+| DeepSeek | `deepseek-v4-flash` | `deepseek-v4-pro` |
+| OpenAI | `gpt-4o-mini` or `gpt-5-mini` | `o1` or `gpt-5` |
+| Anthropic | `claude-haiku-4-5` | `claude-sonnet-4-6` or `claude-opus-4-7` |
+| Google | `gemini-2.5-flash` | `gemini-2.5-pro` |
+| Local (Ollama) | `qwen2.5-coder:7b` | `qwen2.5-coder:32b` or `deepseek-r1` |
+
+To make these defaults sticky:
 
 ```bash
-export DEEPSEEK_API_KEY=sk-your-key-here
+export PI_PLUGIN_REVIEW_MODEL=claude-haiku-4-5
+export PI_PLUGIN_ADVERSARIAL_REVIEW_MODEL=claude-sonnet-4-6
 ```
 
-For a full custom config, write `~/.pi/agent/models.json`:
+## Configure pi
+
+The minimum is a single env var with your API key. For richer setups, write `~/.pi/agent/models.json`:
 
 ```json
 {
   "providers": {
-    "deepseek": {
-      "apiKey": "sk-your-deepseek-key"
-    },
-    "openai": {
-      "apiKey": "sk-your-openai-key"
-    },
-    "openrouter-deepseek": {
+    "deepseek": { "apiKey": "sk-..." },
+    "openai":   { "apiKey": "sk-..." },
+    "anthropic":{ "apiKey": "sk-ant-..." },
+    "google":   { "apiKey": "..." },
+    "openrouter": {
       "api": "openai-completions",
       "apiKey": "sk-or-v1-...",
       "baseUrl": "https://openrouter.ai/api/v1",
       "models": [
         {
           "id": "deepseek/deepseek-chat",
-          "name": "DeepSeek (via OpenRouter)",
+          "name": "DeepSeek via OpenRouter",
           "contextWindow": 128000,
           "maxTokens": 8192,
           "input": ["text"]
@@ -134,19 +166,21 @@ For a full custom config, write `~/.pi/agent/models.json`:
 }
 ```
 
-See [pi providers docs](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/providers.md) for every supported provider and field.
+Built-in providers (`anthropic`, `openai`, `google`, `deepseek`, `ollama`, `lmstudio`) only need `apiKey` (and optional `baseUrl`); pi ships their model lists. For custom OpenAI-compatible endpoints, set `api: "openai-completions"` and declare the `models` you want exposed.
+
+Full reference: [pi providers docs](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/providers.md).
 
 ## Stop-time review gate
 
-Opt in with `/pi:setup --enable-review-gate`. When a Claude session ends, the plugin runs a Pi adversarial review of the previous turn and can block the stop if it finds material issues. Disable with `/pi:setup --disable-review-gate`.
+Opt in with `/pi:setup --enable-review-gate`. When a Claude session ends, the plugin runs a Pi adversarial review of the previous turn and can block the stop if it finds material issues. If pi is unavailable while the gate is enabled, the hook blocks (it does **not** silently let the session end). Disable with `/pi:setup --disable-review-gate`.
 
 ## 🔗 Related projects
 
 | Project | Niche | When to use |
 |---|---|---|
-| [codex-plugin-cc](https://github.com/openai/codex-plugin-cc) | Same surface, runs Codex | When you want OpenAI's Codex agent + ChatGPT auth |
-| [pi (earendil-works)](https://github.com/earendil-works/pi) | The coding agent this plugin drives | If you want to use Pi directly without Claude Code |
-| [pi-subagents](https://github.com/nicobailon/pi-subagents) | Pi extension adding `subagent` tool + `/run` / `/chain` / `/parallel` | Lets `/pi:rescue` delegate to specialized child agents |
+| [codex-plugin-cc](https://github.com/openai/codex-plugin-cc) | Same surface, runs Codex | You want OpenAI's Codex agent + ChatGPT auth |
+| [pi (earendil-works)](https://github.com/earendil-works/pi) | The coding agent this plugin drives | You want to use Pi directly without Claude Code |
+| [pi-subagents](https://github.com/nicobailon/pi-subagents) | Pi extension adding `subagent` tool + `/run` / `/chain` / `/parallel` | Let `/pi:rescue` delegate further to specialized child agents |
 
 ## 💬 Community
 
