@@ -45,3 +45,12 @@ Prompt assembly checklist:
 3. Decide whether Pi should keep going on its own judgment or stop for missing high-risk details.
 4. Add `<grounding_rules>` and `<action_safety>` only where the task needs them.
 5. Remove redundant instructions before sending the prompt.
+
+## Subagent-aware prompting
+
+When pi-subagents is installed:
+- For tasks with parallel workstreams, prepend `<available_pi_subagents>` block before `<task>`.
+- Suggested agent routing: scout for exploration, researcher for web/docs, planner for design, worker for implementation, reviewer for code review.
+- Never suggest subagents in adversarial-review or stop-review-gate prompts (those need deterministic behavior).
+- The block is a suggestion, not a command — Pi decides whether to delegate.
+- For dedicated multi-task parallel execution, use `/pi:parallel-rescue "task1" "task2" ...` instead of manual prompt construction.

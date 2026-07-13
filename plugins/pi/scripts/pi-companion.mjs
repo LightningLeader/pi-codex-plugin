@@ -12,6 +12,7 @@ import {
   DEFAULT_CONTINUE_PROMPT,
   getPiAvailability,
   getPiModelsStatus,
+  getPiSubagentsStatus,
   getSessionRuntimeStatus,
   parseStructuredOutput,
   readOutputSchema,
@@ -184,6 +185,7 @@ async function buildSetupReport(cwd, actionsTaken = []) {
   const nodeStatus = binaryAvailable("node", ["--version"], { cwd });
   const piStatus = getPiAvailability(cwd);
   const modelsStatus = getPiModelsStatus(process.env);
+  const subagentsStatus = getPiSubagentsStatus();
   const config = getConfig(workspaceRoot);
 
   // Try to list available models from the pi CLI.
@@ -215,6 +217,7 @@ async function buildSetupReport(cwd, actionsTaken = []) {
     node: nodeStatus,
     pi: piStatus,
     models: modelsStatus,
+    subagents: subagentsStatus,
     availableModels,
     sessionRuntime: getSessionRuntimeStatus(process.env, workspaceRoot),
     reviewGateEnabled: Boolean(config.stopReviewGate),

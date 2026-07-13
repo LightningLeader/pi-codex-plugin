@@ -196,6 +196,17 @@ export function renderSetupReport(report) {
     lines.push(`- available models: ${report.availableModels.join(", ")}`);
   }
 
+  if (report.subagents) {
+    if (report.subagents.installed) {
+      const names = report.subagents.agentNames.length > 0
+        ? report.subagents.agentNames.join(", ")
+        : "scout, researcher, planner, worker, reviewer, context-builder, oracle, delegate";
+      lines.push(`- pi-subagents: installed (${report.subagents.agentCount} agents: ${names})`);
+    } else {
+      lines.push("- pi-subagents: not installed (run `pi install npm:pi-subagents` to enable parallel subagents)");
+    }
+  }
+
   lines.push(
     `- session runtime: ${report.sessionRuntime.label}`,
     `- review gate: ${report.reviewGateEnabled ? "enabled" : "disabled"}`,

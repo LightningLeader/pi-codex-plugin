@@ -582,6 +582,85 @@ export function getPiModelsStatus(env = process.env) {
   };
 }
 
+export function getPiSubagentsStatus() {
+  const subagentDir = path.join(os.homedir(), ".pi", "agent", "extensions", "subagent");
+  const installed = fs.existsSync(subagentDir);
+
+  if (!installed) {
+    return { installed: false, agentCount: 0, agentNames: [], config: null };
+  }
+
+  // Try to read config.json for agent info
+  let config = null;
+  let agentNames = [];
+  try {
+    const configPath = path.join(subagentDir, "config.json");
+    if (fs.existsSync(configPath)) {
+      config = JSON.parse(fs.readFileSync(configPath, "utf8"));
+    }
+  } catch {
+    // config.json may not exist or be unreadable — not critical
+  }
+
+  // Discover agent names from the builtin agents/ directory
+  const builtinAgentsDir = path.join(subagentDir, "agents");
+  if (fs.existsSync(builtinAgentsDir)) {
+    try {
+      agentNames = fs.readdirSync(builtinAgentsDir)
+        .filter(f => f.endsWith(".md"))
+        .map(f => f.replace(/\.md$/, ""));
+    } catch {
+      // directory unreadable — skip
+    }
+  }
+
+  // Also check user and project agent dirs
+  const userAgentsDir = path.join(os.homedir(), ".pi", "agent", "agents");
+  const projectAgentsDir = ".pi/agents";
+
+  const allNames = new Set(agentNames);
+  for (const dir of [userAgentsDir, projectAgentsDir]) {
+    try {
+      if (fs.existsSync(dir)) {
+        for (const f of fs.readdirSync(dir)) {
+          if (f.endsWith(".md")) allNames.add(f.replace(/\.md$/, ""));
+        }
+      }
+    } catch { /* skip */ }
+  }
+
+  return {
+    installed: true,
+    agentCount: allNames.size,
+    agentNames: [...allNames].sort(),
+    config
+  };
+}
+
+export function hasPiSubagents() {
+  return getPiSubagentsStatus().installed;
+}
+
+export function buildSubagentsContextBlock() {
+  const status = getPiSubagentsStatus();
+  if (!status.installed) return "";
+
+  const agents = status.agentNames.length > 0
+    ? status.agentNames.join(", ")
+    : "scout, researcher, planner, worker, reviewer, context-builder, oracle, delegate";
+
+  return [
+    "",
+    "<available_pi_subagents>",
+    "pi-subagents is installed and available. You have the `subagent` tool for delegating work to child agents.",
+    `Available agent profiles: ${agents}`,
+    "If this task has clearly separable independent workstreams, use subagent({ tasks: [...] }) to parallelize.",
+    "For sequential dependencies, use subagent({ chain: [...] }).",
+    "</available_pi_subagents>",
+    ""
+  ].join("\n");
+}
+
 export function getSessionRuntimeStatus(_env = process.env, _cwd = process.cwd()) {
   return {
     mode: "direct",

@@ -42,3 +42,12 @@ Forwarding rules:
 Response style:
 
 - Do not add commentary before or after the forwarded `pi-companion` output.
+
+## Pi-subagents awareness
+
+When forwarding a task to Pi:
+1. Check if pi-subagents is installed: `test -d ~/.pi/agent/extensions/subagent && echo installed`
+2. If installed AND the user's task has clearly independent parallel workstreams, prepend the subagents context block to the prompt.
+3. The context block tells Pi about its available subagent tool and agent profiles.
+4. Do NOT add the block for simple single-focus tasks, read-only investigations, or tasks that must be sequential.
+5. Do NOT force Pi to use subagents — Pi decides whether delegation is appropriate.
