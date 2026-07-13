@@ -1,4 +1,4 @@
-# pi-plugin-cc — drive the Pi coding agent from Claude Code 🥧
+# pi-plugin-cc — drive the Pi coding agent from Claude Code and Codex 🥧
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/Agents365-ai/pi-plugin-cc?style=flat&logo=github)](https://github.com/Agents365-ai/pi-plugin-cc/stargazers)
@@ -9,7 +9,6 @@
 [![Claude Code Plugin](https://img.shields.io/badge/Claude%20Code-plugin-8a2be2)](https://docs.claude.com/en/docs/claude-code/plugins)
 [![Pi Coding Agent](https://img.shields.io/badge/Pi-coding%20agent-0a7d4a)](https://github.com/earendil-works/pi)
 [![Model agnostic](https://img.shields.io/badge/Model-agnostic-555)](#pick-your-model)
-[![Discord](https://img.shields.io/badge/Discord-Join-5865F2?logo=discord&logoColor=white)](https://discord.gg/79JF5Atuk)
 
 **English** · [中文](README_CN.md)
 
