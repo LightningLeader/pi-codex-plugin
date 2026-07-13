@@ -71,7 +71,7 @@
         <!-- Arrow: pi-companion.mjs -> Pi Coding Agent -->
         <mxCell id="17" value="pi &#x914d;&#x7f6e;&#x7684;&#x4efb;&#x4f55;&#xa;provider / model" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;flowAnimation=1;labelBackgroundColor=#ffffff;fontSize=11;" edge="1" parent="1" source="9" target="10">
           <mxGeometry relative="1" as="geometry">
-            <mxPoint x="15" y="0" as="offset" />
+            <mxPoint x="-55" y="0" as="offset" />
           </mxGeometry>
         </mxCell>
         <!-- pi-subagents fan-out -->
@@ -82,6 +82,26 @@
         <mxCell id="23" value="subagent({ tasks })" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;flowAnimation=1;labelBackgroundColor=#ffffff;fontSize=11;dashed=1;" edge="1" parent="1" source="10" target="22">
           <mxGeometry relative="1" as="geometry">
             <mxPoint x="0" y="-12" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <!-- Multi-model review panel -->
+        <mxCell id="24" value="多模型评审团&#xa;--models m1,m2,&#8230;&#xa;findings 共识合并" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="390" y="185" width="200" height="70" as="geometry" />
+        </mxCell>
+        <!-- Arrow: pi-companion.mjs -> panel -->
+        <mxCell id="25" value="review --models" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;flowAnimation=1;labelBackgroundColor=#ffffff;fontSize=11;dashed=1;" edge="1" parent="1" source="9" target="24">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="0" y="-12" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <!-- Arrow: panel -> Pi Coding Agent -->
+        <mxCell id="26" value="&#215;N 并行 Pi 进程" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.25;exitY=1;exitDx=0;exitDy=0;entryX=0.75;entryY=0;entryDx=0;entryDy=0;flowAnimation=1;labelBackgroundColor=#ffffff;fontSize=11;dashed=1;" edge="1" parent="1" source="24" target="10">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="440" y="290" />
+              <mxPoint x="245" y="290" />
+            </Array>
+            <mxPoint x="0" y="14" as="offset" />
           </mxGeometry>
         </mxCell>
         <!-- Arrow: Pi Coding Agent -> JSONL events -->
