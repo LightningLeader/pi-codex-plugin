@@ -8,7 +8,7 @@ The user's CLAUDE.md still applies: write minimum code, English-only comments, n
 
 ## 1. The Goal
 
-Build **`pi-plugin-cc`** — a Claude Code plugin that is a **complete 1:1 fork** of [`codex-plugin-cc`](https://github.com/openai/codex-plugin-cc), but routes every command through the **pi coding agent** instead of Codex.
+Build **`pi-plugin-cc`** — a Claude Code plugin that is a **complete port adapted from** [`codex-plugin-cc`](https://github.com/openai/codex-plugin-cc), but routes every command through the **pi coding agent** instead of Codex.
 
 - Reference (source plugin, fully read-accessible on local disk):
   `/Users/niehu/github/codex-plugin-cc`
@@ -107,7 +107,7 @@ pi-plugin-cc/
 │   ├── schemas/                            (any json schemas the commands rely on)
 │   ├── scripts/
 │   │   ├── pi-companion.mjs                (port of codex-companion.mjs — the long pole)
-│   │   ├── pi-rpc-broker.mjs               (replaces app-server-broker.mjs)
+│   │   ├── pi-rpc-broker.mjs               (not needed — Pi has no broker; merged into pi-rpc.mjs)
 │   │   └── lib/                            (shared helpers)
 │   └── skills/
 │       ├── pi-cli-runtime.md               (port of codex-cli-runtime, rewrite for pi)
@@ -129,17 +129,21 @@ Renames to apply mechanically across every file:
 
 ## 6. Known Translation Challenges
 
-1. **Protocol schemas differ.** Codex's JSON-RPC has typed methods (`newConversation`, `sendUserTurn`, `interrupt`, etc.) with generated TS types. Pi's RPC is JSONL — likely a different vocabulary. Expect to write a thin adapter layer; do NOT try to preserve the codex method names inside pi-companion.
+### Resolved
 
-2. **No reasoning effort knob on most pi providers.** Codex has `model_reasoning_effort = "high"`. DeepSeek's reasoner model has its own modes; other providers have none. The `--effort` flag should still parse but degrade gracefully (warn + drop) when the configured pi model doesn't support it.
+1. **Protocol schemas differ.** Codex's JSON-RPC has typed methods; pi's RPC is JSONL with a different vocabulary. The adapter layer (`pi-rpc.mjs`) handles the mapping.
 
-3. **Review prompts are tuned for GPT-5.** The current `review.md` / `adversarial-review.md` prompts rely on strong instruction following + long-context reasoning. On DeepSeek-Chat they will probably under-perform. Plan to rewrite these prompts (more explicit checklists, fewer "challenge the design" abstractions). The `gpt-5-4-prompting` skill should be replaced wholesale.
+2. **No reasoning effort knob on most pi providers.** Implemented via `set_thinking_level` post-spawn; unsupported models silently ignore it.
 
-4. **Session resume.** Codex tracks session IDs and supports `codex resume <id>`. Pi may or may not have an equivalent — confirm from the RPC docs. If pi doesn't, `--resume-last` becomes a client-side concept (store the last session JSONL transcript and re-feed it on next launch).
+3. **Session resume.** Pi supports `--session <UUID-or-path>` at spawn time; `pi-companion.mjs` uses it for `--resume-last`.
 
-5. **`pi --mode rpc` lifecycle.** Codex's app-server is long-lived and multiplexes conversations. If pi's RPC mode is per-process per-task, the broker becomes a process pool instead of a multiplexer. Affects `/pi:status` and `/pi:cancel` design.
+4. **`pi --mode rpc` lifecycle.** Pi is per-process per-task; the broker was dropped in favor of direct spawn per task. `/pi:status` and `/pi:cancel` work via the process-pool model.
 
-6. **The review gate hook (`stop-review-gate-hook.mjs`)** invokes a targeted codex review on Claude's response. Port carefully — same risk profile applies (long Claude/pi loops can burn API quota). Keep it opt-in via `/pi:setup --enable-review-gate`.
+5. **The review gate hook.** Ported and working; remains opt-in via `/pi:setup --enable-review-gate`.
+
+### Remaining
+
+1. **Review prompts are tuned for GPT-5.** The current `review.md` / `adversarial-review.md` prompts rely on strong instruction following + long-context reasoning. On DeepSeek-Chat they will probably under-perform. Plan to rewrite these prompts (more explicit checklists, fewer "challenge the design" abstractions). The `gpt-5-4-prompting` skill should be replaced wholesale.
 
 ---
 

@@ -60,6 +60,7 @@ export class PiRpcClient {
     try {
       this.proc = spawn(this.command, this.spawnArgs, {
         cwd: this.cwd,
+        detached: true,
         env: this.env,
         stdio: ["pipe", "pipe", "pipe"],
         shell: process.platform === "win32" ? (process.env.SHELL || true) : false,

@@ -392,7 +392,6 @@ async function executeReviewRun(request) {
     exitStatus: result.status,
     piSessionId: result.piSessionId,
     piSessionFile: result.piSessionFile,
-    turnId: result.turnId,
     payload,
     rendered: renderReviewResult(parsed, {
       reviewLabel: reviewName,
@@ -470,7 +469,6 @@ async function executeTaskRun(request) {
     exitStatus: result.status,
     piSessionId: result.piSessionId,
     piSessionFile: result.piSessionFile,
-    turnId: result.turnId,
     payload,
     rendered,
     summary: firstMeaningfulLine(rawOutput, firstMeaningfulLine(failureMessage, `${taskMetadata.title} finished.`)),
@@ -959,10 +957,10 @@ async function main() {
       await handleStatus(argv);
       break;
     case "result":
-      handleResult(argv);
+      await handleResult(argv);
       break;
     case "task-resume-candidate":
-      handleTaskResumeCandidate(argv);
+      await handleTaskResumeCandidate(argv);
       break;
     case "cancel":
       await handleCancel(argv);

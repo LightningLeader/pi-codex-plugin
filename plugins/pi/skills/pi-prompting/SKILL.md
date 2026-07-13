@@ -6,7 +6,7 @@ user-invocable: false
 
 # Pi Prompting
 
-Use this skill when `pi:pi-rescue` needs to ask Pi for help on a non-trivial coding or investigation task.
+Use this skill when `pi:pi-companion-forwarder` needs to ask Pi for help on a non-trivial coding or investigation task.
 
 Pi runs whatever model the user has configured. By default this plugin targets DeepSeek V4 (Pro for review, Flash for everyday tasks). The guidance below assumes the prompt may run on either a non-reasoning model (Flash) or a reasoning model (Pro). Bias toward concrete, numbered checklists rather than abstract instructions — both model classes follow those reliably.
 

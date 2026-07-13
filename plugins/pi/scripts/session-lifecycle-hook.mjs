@@ -19,6 +19,9 @@ function readHookInput() {
 }
 
 function shellEscape(value) {
+  if (process.platform === "win32") {
+    return `"${String(value).replace(/"/g, '\\"')}"`;
+  }
   return `'${String(value).replace(/'/g, `'\"'\"'`)}'`;
 }
 
@@ -90,5 +93,5 @@ async function main() {
 
 main().catch((error) => {
   process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
-  process.exit(1);
+  process.exitCode = 1;
 });

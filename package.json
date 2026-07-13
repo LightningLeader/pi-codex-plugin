@@ -8,6 +8,15 @@
   "engines": {
     "node": ">=18.18.0"
   },
+  "files": [
+    "plugins/",
+    "scripts/",
+    "package.json",
+    "README.md",
+    "README_CN.md",
+    "LICENSE",
+    "NOTICE"
+  ],
   "scripts": {
     "bump-version": "node scripts/bump-version.mjs",
     "check-version": "node scripts/bump-version.mjs --check",

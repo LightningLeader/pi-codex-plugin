@@ -202,7 +202,6 @@ function createTurnCaptureState(options = {}) {
   return {
     sessionId: null,
     sessionFile: null,
-    turnId: null,
     finalTurn: null,
     lastAgentMessage: "",
     reviewText: "",
@@ -414,6 +413,9 @@ async function runPiAgentRun(client, prompt, options = {}) {
       state.completed = true;
       agentEndResolve(event);
     }
+    if (event.type === "auto_retry_end" && event.success === false) {
+      agentEndResolve();
+    }
   });
 
   try {
@@ -426,7 +428,7 @@ async function runPiAgentRun(client, prompt, options = {}) {
     agentEndResolve();
     state.error = { message: error instanceof Error ? error.message : String(error) };
     state.completed = false;
-    state.finalTurn = { id: state.turnId ?? "rejected", status: "failed" };
+    state.finalTurn = { id: "rejected", status: "failed" };
     return state;
   }
 
@@ -440,7 +442,7 @@ async function runPiAgentRun(client, prompt, options = {}) {
     const exitErrorMessage =
       client.exitError instanceof Error ? client.exitError.message : "pi exited before agent_end";
     state.error = state.error ?? { message: exitErrorMessage };
-    state.finalTurn = { id: state.turnId ?? "interrupted", status: "failed" };
+    state.finalTurn = { id: "interrupted", status: "failed" };
     return state;
   }
 
@@ -473,7 +475,7 @@ async function runPiAgentRun(client, prompt, options = {}) {
   }
 
   state.finalTurn = {
-    id: state.turnId ?? "single-turn",
+    id: "single-turn",
     status: state.error ? "failed" : "completed"
   };
   return state;
@@ -604,7 +606,6 @@ export async function runAppServerReview(cwd, options = {}) {
         status: buildResultStatus(state),
         piSessionId: state.sessionId,
         piSessionFile: state.sessionFile,
-        turnId: state.turnId,
         reviewText: state.lastAgentMessage,
         reasoningSummary: state.reasoningSummary,
         turn: state.finalTurn,
@@ -652,7 +653,6 @@ export async function runAppServerTurn(cwd, options = {}) {
         status: buildResultStatus(state),
         piSessionId: state.sessionId,
         piSessionFile: state.sessionFile,
-        turnId: state.turnId,
         finalMessage: state.lastAgentMessage,
         reasoningSummary: state.reasoningSummary,
         turn: state.finalTurn,

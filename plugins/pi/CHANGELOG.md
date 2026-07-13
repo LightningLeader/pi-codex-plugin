@@ -1,5 +1,12 @@
 # Changelog
 
+## UNRELEASED
+
+- Shell expansion safety fix (ported from upstream codex-plugin-cc)
+- Replace ASCII workflow diagram with drawio PNG
+- Rephrase "1:1 fork" to "Adapted from"
+- Various code cleanup
+
 ## 0.1.2
 
 - Model-agnostic: removed hard-coded `deepseek-v4-flash` / `deepseek-v4-pro` defaults
