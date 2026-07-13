@@ -20,7 +20,7 @@ import {
 } from "./lib/pi.mjs";
 import { readStdinIfPiped } from "./lib/fs.mjs";
 import { collectReviewContext, ensureGitRepository, resolveReviewTarget } from "./lib/git.mjs";
-import { binaryAvailable, terminateProcessTree } from "./lib/process.mjs";
+import { binaryAvailable, runCommand, terminateProcessTree } from "./lib/process.mjs";
 import { loadPromptTemplate, interpolateTemplate } from "./lib/prompts.mjs";
 import {
   generateJobId,
@@ -186,9 +186,20 @@ async function buildSetupReport(cwd, actionsTaken = []) {
   const modelsStatus = getPiModelsStatus(process.env);
   const config = getConfig(workspaceRoot);
 
+  // Try to list available models from the pi CLI.
+  let availableModels = [];
+  if (piStatus.available) {
+    const listResult = runCommand("pi", ["--list-models"], { cwd });
+    if (listResult.status === 0 && listResult.stdout.trim()) {
+      availableModels = listResult.stdout.trim().split("\n").filter(Boolean).slice(0, 10);
+    }
+  }
+
   const nextSteps = [];
   if (!piStatus.available) {
     nextSteps.push("Install Pi with `npm install -g --ignore-scripts @earendil-works/pi-coding-agent`.");
+  } else if (piStatus.versionWarning) {
+    nextSteps.push(piStatus.versionWarning);
   }
   if (piStatus.available && !modelsStatus.available) {
     nextSteps.push(
@@ -204,6 +215,7 @@ async function buildSetupReport(cwd, actionsTaken = []) {
     node: nodeStatus,
     pi: piStatus,
     models: modelsStatus,
+    availableModels,
     sessionRuntime: getSessionRuntimeStatus(process.env, workspaceRoot),
     reviewGateEnabled: Boolean(config.stopReviewGate),
     actionsTaken,
@@ -755,7 +767,6 @@ async function handleTaskWorker(argv) {
     throw new Error("Missing required --job-id for task-worker.");
   }
 
-  const cwd = resolveCommandCwd(options);
   const workspaceRoot = resolveCommandWorkspace(options);
   const storedJob = readStoredJob(workspaceRoot, options["job-id"]);
   if (!storedJob) {
@@ -842,7 +853,6 @@ function handleTaskResumeCandidate(argv) {
     booleanOptions: ["json"]
   });
 
-  const cwd = resolveCommandCwd(options);
   const workspaceRoot = resolveCommandWorkspace(options);
   const sessionId = getCurrentClaudeSessionId();
   const jobs = filterJobsForCurrentClaudeSession(sortJobsNewestFirst(listJobs(workspaceRoot)));

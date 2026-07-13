@@ -29,6 +29,8 @@ export class PiRpcClient {
     ];
     this.env = options.env ?? process.env;
     this.proc = null;
+    // Requests are sent one-at-a-time (serialized by the companion flow), so
+    // this map never holds more than 1 entry. No explicit size cap needed.
     this.pending = new Map();
     this.nextId = 1;
     this.eventHandler = options.eventHandler ?? null;

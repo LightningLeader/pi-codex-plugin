@@ -182,12 +182,25 @@ export function renderSetupReport(report) {
     "",
     "Checks:",
     `- node: ${report.node.detail}`,
-    `- pi: ${report.pi.detail}`,
-    `- models: ${report.models.detail}`,
+    `- pi: ${report.pi.detail}`
+  ];
+
+  if (report.pi.version) {
+    const ok = report.pi.versionWarning ? "!" : "ok";
+    lines.push(`  version: ${report.pi.version} (>= 0.75.0 ${ok})`);
+  }
+
+  lines.push(`- models: ${report.models.detail}`);
+
+  if (report.availableModels.length > 0) {
+    lines.push(`- available models: ${report.availableModels.join(", ")}`);
+  }
+
+  lines.push(
     `- session runtime: ${report.sessionRuntime.label}`,
     `- review gate: ${report.reviewGateEnabled ? "enabled" : "disabled"}`,
     ""
-  ];
+  );
 
   if (report.actionsTaken.length > 0) {
     lines.push("Actions taken:");
@@ -284,7 +297,7 @@ export function renderReviewResult(parsedResult, meta) {
   return `${lines.join("\n").trimEnd()}\n`;
 }
 
-export function renderTaskResult(parsedResult, meta) {
+export function renderTaskResult(parsedResult, _meta) {
   const rawOutput = typeof parsedResult?.rawOutput === "string" ? parsedResult.rawOutput : "";
   if (rawOutput) {
     return rawOutput.endsWith("\n") ? rawOutput : `${rawOutput}\n`;

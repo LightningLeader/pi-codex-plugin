@@ -485,6 +485,19 @@ function buildResultStatus(turnState) {
   return turnState.finalTurn?.status === "completed" ? 0 : 1;
 }
 
+const MIN_PI_VERSION = "0.75.0";
+
+function _semverGte(actual, minimum) {
+  const a = actual.split(".").map(Number);
+  const b = minimum.split(".").map(Number);
+  for (let i = 0; i < Math.max(a.length, b.length); i++) {
+    const av = a[i] || 0;
+    const bv = b[i] || 0;
+    if (av !== bv) return av > bv;
+  }
+  return true;
+}
+
 export function getPiAvailability(cwd) {
   const versionStatus = binaryAvailable("pi", ["--version"], { cwd });
   if (!versionStatus.available) {
@@ -494,9 +507,18 @@ export function getPiAvailability(cwd) {
     };
   }
 
+  const versionMatch = versionStatus.detail.match(/(\d+\.\d+\.\d+)/);
+  const version = versionMatch ? versionMatch[1] : null;
+  let versionWarning = null;
+  if (version && !_semverGte(version, MIN_PI_VERSION)) {
+    versionWarning = `Pi version ${version} is older than the recommended minimum ${MIN_PI_VERSION}. Some features may not work.`;
+  }
+
   return {
     available: true,
-    detail: versionStatus.detail
+    detail: versionStatus.detail,
+    version,
+    versionWarning
   };
 }
 
