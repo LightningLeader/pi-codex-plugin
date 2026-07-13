@@ -15,7 +15,7 @@
 
 External references: [Pi coding agent](https://github.com/earendil-works/pi) · [Pi RPC mode](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/rpc.md) · [Pi providers](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/providers.md)
 
-A Claude Code plugin that delegates reviews and coding tasks to the [Pi coding agent](https://github.com/earendil-works/pi). Adapted from [`codex-plugin-cc`](https://github.com/openai/codex-plugin-cc), runtime swapped from Codex to Pi.
+A Claude Code plugin that delegates reviews and coding tasks to the [Pi coding agent](https://github.com/earendil-works/pi). Adapted from [`codex-plugin-cc`](https://github.com/openai/codex-plugin-cc), runtime swapped from Codex to Pi. Also usable from OpenAI's Codex CLI — see [Use from Codex](#-use-from-codex).
 
 **The hard dependency is pi, not any particular LLM.** Pi can be configured for DeepSeek, OpenAI, Anthropic, Google, Ollama, LM Studio, or any OpenAI-compatible endpoint via `~/.pi/agent/models.json`. The plugin defers all model selection to pi unless you override per command.
 
@@ -94,6 +94,26 @@ Install the plugin in Claude Code:
 ```
 
 `--effort <off|minimal|low|medium|high|xhigh>` is passed through to Pi via `set_thinking_level`. Models that do not support thinking silently ignore it (the plugin logs a one-line note to stderr when this happens).
+
+## 🧩 Use from Codex
+
+The core of this plugin is a harness-agnostic CLI (`pi-companion.mjs`) — any coding agent that can run shell commands can drive it. For OpenAI's Codex CLI, install the bundled [custom prompts](codex-prompts/):
+
+```bash
+# 1. Clone the repo (anywhere; ~/pi-plugin-cc is the default the prompts assume)
+git clone https://github.com/Agents365-ai/pi-plugin-cc ~/pi-plugin-cc
+
+# 2. Install the Codex custom prompts
+mkdir -p ~/.codex/prompts
+cp ~/pi-plugin-cc/codex-prompts/*.md ~/.codex/prompts/
+
+# 3. If you cloned somewhere else, point the prompts at it
+echo 'export PI_PLUGIN_ROOT="$HOME/path/to/pi-plugin-cc"' >> ~/.zshrc
+```
+
+Then inside Codex: `/pi-review`, `/pi-adversarial-review`, `/pi-rescue`, `/pi-parallel-rescue`, `/pi-status`, `/pi-result`, `/pi-cancel`, `/pi-setup` (note `-` instead of `:` — Codex prompt names cannot contain colons).
+
+Not available under Codex: the stop-time review gate and session-resume prompts (both rely on Claude Code hooks / subagents). Everything else — including pi-subagents parallel fan-out — works the same.
 
 ## Pick your model
 

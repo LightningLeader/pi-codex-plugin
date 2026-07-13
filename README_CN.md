@@ -15,7 +15,7 @@
 
 外部参考：[Pi 编码 agent](https://github.com/earendil-works/pi) · [Pi RPC 模式](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/rpc.md) · [Pi providers](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/providers.md)
 
-把代码评审与编码任务从 Claude Code 转交给 [Pi 编码 agent](https://github.com/earendil-works/pi) 的插件。改编自 [`codex-plugin-cc`](https://github.com/openai/codex-plugin-cc)，把底层 runtime 从 Codex 换成 Pi。
+把代码评审与编码任务从 Claude Code 转交给 [Pi 编码 agent](https://github.com/earendil-works/pi) 的插件。改编自 [`codex-plugin-cc`](https://github.com/openai/codex-plugin-cc)，把底层 runtime 从 Codex 换成 Pi。也可以在 OpenAI Codex CLI 里使用 —— 见[在 Codex 里使用](#-在-codex-里使用)。
 
 **硬依赖是 pi 本身，不是某个具体的大模型。** Pi 可以配置成 DeepSeek、OpenAI、Anthropic、Google、Ollama、LM Studio，或者任何 OpenAI 兼容端点 —— 通过 `~/.pi/agent/models.json`。插件默认把模型选择完全交给 pi，除非你单次 `--model` 覆盖。
 
@@ -94,6 +94,26 @@ pi --list-models | head
 ```
 
 `--effort <off|minimal|low|medium|high|xhigh>` 会经 `set_thinking_level` 传给 Pi。不支持 thinking 的模型会静默忽略（插件会往 stderr 写一行提示）。
+
+## 🧩 在 Codex 里使用
+
+本插件的核心是一个与宿主无关的 CLI（`pi-companion.mjs`）—— 任何能跑 shell 命令的 coding agent 都能驱动它。对 OpenAI 的 Codex CLI，安装自带的 [custom prompts](codex-prompts/)：
+
+```bash
+# 1. 克隆仓库（任意位置；prompts 默认假设在 ~/pi-plugin-cc）
+git clone https://github.com/Agents365-ai/pi-plugin-cc ~/pi-plugin-cc
+
+# 2. 安装 Codex custom prompts
+mkdir -p ~/.codex/prompts
+cp ~/pi-plugin-cc/codex-prompts/*.md ~/.codex/prompts/
+
+# 3. 如果克隆到了别处，把 prompts 指向它
+echo 'export PI_PLUGIN_ROOT="$HOME/path/to/pi-plugin-cc"' >> ~/.zshrc
+```
+
+之后在 Codex 里用：`/pi-review`、`/pi-adversarial-review`、`/pi-rescue`、`/pi-parallel-rescue`、`/pi-status`、`/pi-result`、`/pi-cancel`、`/pi-setup`（注意是 `-` 不是 `:` —— Codex 的 prompt 名不能带冒号）。
+
+Codex 下不可用的部分：stop-time 评审守门和会话恢复询问（两者依赖 Claude Code 的 hooks / 子代理）。其余功能 —— 包括 pi-subagents 并行分发 —— 行为一致。
 
 ## 选模型
 
