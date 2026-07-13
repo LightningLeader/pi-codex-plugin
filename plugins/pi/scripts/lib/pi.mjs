@@ -583,10 +583,19 @@ export function getPiModelsStatus(env = process.env) {
 }
 
 export function getPiSubagentsStatus() {
-  const subagentDir = path.join(os.homedir(), ".pi", "agent", "extensions", "subagent");
-  const installed = fs.existsSync(subagentDir);
+  // pi-subagents can be installed via `pi install npm:pi-subagents` (preferred)
+  // or manually cloned to the extensions directory. Check both.
+  const npmDir = path.join(os.homedir(), ".pi", "agent", "npm", "node_modules", "pi-subagents");
+  const legacyDir = path.join(os.homedir(), ".pi", "agent", "extensions", "subagent");
 
-  if (!installed) {
+  let subagentDir = null;
+  if (fs.existsSync(npmDir)) {
+    subagentDir = npmDir;
+  } else if (fs.existsSync(legacyDir)) {
+    subagentDir = legacyDir;
+  }
+
+  if (!subagentDir) {
     return { installed: false, agentCount: 0, agentNames: [], config: null };
   }
 

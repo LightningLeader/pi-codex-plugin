@@ -32,7 +32,7 @@ Task 2: <second task text>
 
 Run the task through the companion:
 ```bash
-node "${CLAUDE_PLUGIN_ROOT}/scripts/pi-companion.mjs" task "${PROMPT}"
+node "${CLAUDE_PLUGIN_ROOT}/scripts/pi-companion.mjs" task --write "${PROMPT}"
 ```
 
 Return the stdout verbatim — do not paraphrase, summarize, or add commentary.
