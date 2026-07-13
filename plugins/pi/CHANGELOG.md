@@ -1,11 +1,26 @@
 # Changelog
 
-## UNRELEASED
+## 0.2.0
 
-- Shell expansion safety fix (ported from upstream codex-plugin-cc)
-- Replace ASCII workflow diagram with drawio PNG
-- Rephrase "1:1 fork" to "Adapted from"
-- Various code cleanup
+- pi-subagents integration: `/pi:setup` detects installation (npm + legacy paths)
+  and lists agent profiles; rescue prompts gain subagent awareness; new
+  `/pi:parallel-rescue` command for multi-task parallel fan-out via
+  `subagent({ tasks: [...] })` (runs `task --write` so the subagent tool stays
+  available).
+- Test suite: 131 tests across process, git, state, JSON parsing, and args
+  modules (`node --test`).
+- Shell expansion safety fix (ported from upstream codex-plugin-cc):
+  `shell: false` on git invocations.
+- Fixed process-group kill that could take down the parent process
+  (`detached: true` on pi spawn); fixed `auto_retry_end` failure deadlock;
+  removed always-null `turnId`.
+- `/pi:setup` shows pi version (min 0.75.0 check) and available models.
+- Windows-safe `shellEscape`; renamed rescue agent to `pi-companion-forwarder`
+  to prevent slash-command re-entry.
+- Removed unimplemented `--background` flag from review commands; registered
+  hooks/commands in plugin.json.
+- Replace ASCII workflow diagram with drawio PNG; rephrase "1:1 fork" to
+  "Adapted from".
 
 ## 0.1.2
 
