@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.3.0
+
+- Multi-model review panel: `/pi:review --models m1,m2,...` (and
+  `/pi:adversarial-review`) reviews the same diff with several models in
+  parallel and merges the findings — consensus findings (reported by 2+
+  models) rank first with `found by:` tags; duplicates are matched per file
+  with line-range slack, severity escalates to the highest reported, and
+  alternate titles are preserved. A failed member (provider error, invalid
+  JSON) is reported inline without sinking the panel.
+- Automatic model fallback: set `PI_PLUGIN_FALLBACK_MODELS=a,b` and any
+  failed review/task run is retried with the next model in the chain. The
+  output ends with a `Model fallback:` note and the JSON payload carries
+  `modelAttempts`. `/pi:setup` reports the configured chain.
+- New lib modules `panel.mjs` and `fallback.mjs`; 41 new tests (172 total).
+
 ## 0.2.0
 
 - pi-subagents integration: `/pi:setup` detects installation (npm + legacy paths)

@@ -21,7 +21,7 @@ function formatLineRange(finding) {
   return `:${finding.line_start}-${finding.line_end}`;
 }
 
-function validateReviewResultShape(data) {
+export function validateReviewResultShape(data) {
   if (!data || typeof data !== "object" || Array.isArray(data)) {
     return "Expected a top-level JSON object.";
   }
@@ -59,7 +59,7 @@ function normalizeReviewFinding(finding, index) {
   };
 }
 
-function normalizeReviewResultData(data) {
+export function normalizeReviewResultData(data) {
   return {
     verdict: data.verdict.trim(),
     summary: data.summary.trim(),
@@ -196,6 +196,13 @@ export function renderSetupReport(report) {
     lines.push(`- available models: ${report.availableModels.join(", ")}`);
   }
 
+  const fallbackModels = report.fallbackModels ?? [];
+  lines.push(
+    fallbackModels.length > 0
+      ? `- fallback models: ${fallbackModels.join(", ")}`
+      : "- fallback models: none (set PI_PLUGIN_FALLBACK_MODELS=model1,model2 to auto-retry failed runs on another model)"
+  );
+
   if (report.subagents) {
     if (report.subagents.installed) {
       const names = report.subagents.agentNames.length > 0
@@ -304,6 +311,82 @@ export function renderReviewResult(parsedResult, meta) {
   }
 
   appendReasoningSection(lines, meta.reasoningSummary);
+
+  return `${lines.join("\n").trimEnd()}\n`;
+}
+
+function pushPanelFinding(lines, finding) {
+  const lineSuffix = formatLineRange(finding);
+  lines.push(`- [${finding.severity}] ${finding.title} (${finding.file}${lineSuffix}) — found by: ${finding.foundBy.join(", ")}`);
+  lines.push(`  ${finding.body}`);
+  if (finding.alsoReportedAs.length > 0) {
+    lines.push(`  Also reported as: ${finding.alsoReportedAs.map((title) => `"${title}"`).join(", ")}`);
+  }
+  if (finding.recommendation) {
+    lines.push(`  Recommendation: ${finding.recommendation}`);
+  }
+}
+
+// panel: merged review data plus per-model member outcomes:
+// { verdict, findings, next_steps, members: [{ model, ok, findingCount, summary, failure }] }
+export function renderPanelReviewResult(panel, meta) {
+  const okCount = panel.members.filter((member) => member.ok).length;
+  const lines = [
+    `# Pi Panel ${meta.reviewLabel}`,
+    "",
+    `Target: ${meta.targetLabel}`,
+    `Models: ${okCount}/${panel.members.length} succeeded`
+  ];
+
+  for (const member of panel.members) {
+    if (member.ok) {
+      lines.push(`- ${member.model}: ok (${member.findingCount} finding${member.findingCount === 1 ? "" : "s"})`);
+      if (member.summary) {
+        lines.push(`  ${member.summary}`);
+      }
+    } else {
+      lines.push(`- ${member.model}: failed — ${member.failure}`);
+    }
+  }
+  lines.push("");
+
+  if (okCount === 0) {
+    lines.push("All panel models failed; no review result was produced.");
+    return `${lines.join("\n").trimEnd()}\n`;
+  }
+
+  lines.push(`Verdict: ${panel.verdict}`, "");
+
+  const consensus = panel.findings.filter((finding) => finding.foundBy.length >= 2);
+  const singleSource = panel.findings.filter((finding) => finding.foundBy.length === 1);
+
+  if (panel.findings.length === 0) {
+    lines.push("No material findings from any model.");
+  }
+  if (consensus.length > 0) {
+    lines.push("Consensus findings (2+ models):");
+    for (const finding of consensus) {
+      pushPanelFinding(lines, finding);
+    }
+    lines.push("");
+  }
+  if (singleSource.length > 0) {
+    lines.push("Single-model findings:");
+    for (const finding of singleSource) {
+      pushPanelFinding(lines, finding);
+    }
+    lines.push("");
+  }
+
+  if (panel.next_steps.length > 0) {
+    if (lines[lines.length - 1] !== "") {
+      lines.push("");
+    }
+    lines.push("Next steps:");
+    for (const step of panel.next_steps) {
+      lines.push(`- ${step}`);
+    }
+  }
 
   return `${lines.join("\n").trimEnd()}\n`;
 }

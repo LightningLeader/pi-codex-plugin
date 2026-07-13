@@ -114,6 +114,31 @@ echo 'export PI_PLUGIN_ROOT="$HOME/path/to/pi-plugin-cc"' >> ~/.zshrc
 
 Codex 下不可用的部分：stop-time 评审守门和会话恢复询问（两者依赖 Claude Code 的 hooks / 子代理）。其余功能 —— 包括 pi-subagents 并行分发 —— 行为一致。
 
+## 🧑‍⚖️ 多模型评审团
+
+单个评审者有盲区，评审团的盲区不重叠。给任一评审命令传 `--models`，同一份 diff 会**并行**发给多个模型评审，findings 自动合并——被 2 个以上模型同时报告的问题排在最前，并带 `found by:` 标注：
+
+```text
+> /pi:review --models deepseek-v4-flash,claude-sonnet-4-6,gpt-5-mini
+> /pi:adversarial-review --models deepseek-v4-pro,o1 focus on concurrency
+```
+
+- 共识 findings（2+ 模型）排最前，单模型 findings 紧随其后。
+- 同文件 + 行区间带容差匹配去重；严重度取各模型报告的最高档，不同表述的标题会保留为备注。
+- 某个成员失败（provider 报错、返回非法 JSON）只按成员如实报告，不影响整体——只要有一个模型返回有效评审，评审团就算成功。
+- 评审团成员不走 `PI_PLUGIN_FALLBACK_MODELS` 降级链——评审团本身就是冗余机制。
+- 这个能力只有 Pi 这种多供应商 agent 才做得到：单一供应商的 CLI 无法召集跨厂商评审团。
+
+## 🛟 模型故障自动降级
+
+配置一次降级链，之后任何失败的运行——provider 宕机、鉴权错误、自动重试耗尽——都会自动换下一个模型重跑：
+
+```bash
+export PI_PLUGIN_FALLBACK_MODELS=deepseek-v4-flash,MiniMax-M3
+```
+
+评审和 rescue 任务都生效。当结果来自降级模型时，输出末尾会附 `Model fallback:` 说明（JSON payload 里带 `modelAttempts`）。`/pi:setup` 会显示当前配置的降级链。
+
 ## 选模型
 
 模型解析三层优先级：
