@@ -15,7 +15,7 @@
 
 External references: [Pi coding agent](https://github.com/earendil-works/pi) · [Pi RPC mode](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/rpc.md) · [Pi providers](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/providers.md)
 
-A Claude Code plugin that delegates reviews and coding tasks to the [Pi coding agent](https://github.com/earendil-works/pi). 1:1 fork of [`codex-plugin-cc`](https://github.com/openai/codex-plugin-cc), runtime swapped from Codex to Pi.
+A Claude Code plugin that delegates reviews and coding tasks to the [Pi coding agent](https://github.com/earendil-works/pi). Adapted from [`codex-plugin-cc`](https://github.com/openai/codex-plugin-cc), runtime swapped from Codex to Pi.
 
 **The hard dependency is pi, not any particular LLM.** Pi can be configured for DeepSeek, OpenAI, Anthropic, Google, Ollama, LM Studio, or any OpenAI-compatible endpoint via `~/.pi/agent/models.json`. The plugin defers all model selection to pi unless you override per command.
 

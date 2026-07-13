@@ -15,7 +15,7 @@
 
 外部参考：[Pi 编码 agent](https://github.com/earendil-works/pi) · [Pi RPC 模式](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/rpc.md) · [Pi providers](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/providers.md)
 
-把代码评审与编码任务从 Claude Code 转交给 [Pi 编码 agent](https://github.com/earendil-works/pi) 的插件。从 [`codex-plugin-cc`](https://github.com/openai/codex-plugin-cc) 1:1 fork，把底层 runtime 从 Codex 换成 Pi。
+把代码评审与编码任务从 Claude Code 转交给 [Pi 编码 agent](https://github.com/earendil-works/pi) 的插件。改编自 [`codex-plugin-cc`](https://github.com/openai/codex-plugin-cc)，把底层 runtime 从 Codex 换成 Pi。
 
 **硬依赖是 pi 本身，不是某个具体的大模型。** Pi 可以配置成 DeepSeek、OpenAI、Anthropic、Google、Ollama、LM Studio，或者任何 OpenAI 兼容端点 —— 通过 `~/.pi/agent/models.json`。插件默认把模型选择完全交给 pi，除非你单次 `--model` 覆盖。
 
@@ -206,4 +206,4 @@ export PI_PLUGIN_ADVERSARIAL_REVIEW_MODEL=claude-sonnet-4-6
 
 ## 📄 License
 
-[Apache License 2.0](LICENSE)。从 [`codex-plugin-cc`](https://github.com/openai/codex-plugin-cc) (Apache-2.0, OpenAI) fork —— 见 [NOTICE](NOTICE)。
+[Apache License 2.0](LICENSE)。改编自 [`codex-plugin-cc`](https://github.com/openai/codex-plugin-cc) (Apache-2.0, OpenAI) —— 见 [NOTICE](NOTICE)。
