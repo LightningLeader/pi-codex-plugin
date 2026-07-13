@@ -344,3 +344,6 @@ export function collectReviewContext(cwd, target, options = {}) {
     ...details
   };
 }
+
+// Test-only exports — pure logic functions
+export { listUniqueFiles, normalizeMaxInlineFiles, normalizeMaxInlineDiffBytes, formatUntrackedFile };
