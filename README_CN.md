@@ -29,21 +29,7 @@
 
 ## 🔄 工作流程
 
-```
-Claude Code  ─►  /pi:review · /pi:rescue · /pi:status ...
-                    │
-                    ▼
-            pi-companion.mjs (Node)
-                    │  每个任务起一个独立的 pi --mode rpc 子进程
-                    ▼
-              Pi 编码 agent ─► pi 配置的任何 provider / model
-                    │
-                    ▼
-               JSONL 事件流 + 最终 assistant 消息
-                    │
-                    ▼
-        作业状态文件（status / result / cancel 读它）
-```
+![pi-plugin-cc 工作流程](docs/pi-plugin-cc-workflow_CN.png)
 
 Codex 的 broker 层被去掉 —— Pi 是"一进程一会话"模型，插件给每个任务直接 spawn 一个新的 `pi --mode rpc`。后台作业用工作区作用域的状态文件追踪。Pi 没有 `outputSchema` 这种参数，所以评审 prompt 直接把 JSON schema 内联进去。
 
@@ -181,15 +167,6 @@ export PI_PLUGIN_ADVERSARIAL_REVIEW_MODEL=claude-sonnet-4-6
 | [codex-plugin-cc](https://github.com/openai/codex-plugin-cc) | 同样的命令面，底层跑 Codex | 想用 OpenAI Codex agent + ChatGPT 账号时 |
 | [pi (earendil-works)](https://github.com/earendil-works/pi) | 本插件驱动的编码 agent 本体 | 想直接用 Pi、不经 Claude Code 时 |
 | [pi-subagents](https://github.com/nicobailon/pi-subagents) | Pi 扩展，加 `subagent` 工具 + `/run` / `/chain` / `/parallel` | 让 `/pi:rescue` 在内部进一步转交给专门的子代理 |
-
-## 💬 社区
-
-- **Discord:** https://discord.gg/79JF5Atuk
-- **微信:** 扫描下方二维码
-
-<p align="center">
-  <img src="https://raw.githubusercontent.com/Agents365-ai/images_payment/main/qrcode/agents365ai_wechat_1.png" width="200" alt="微信交流群">
-</p>
 
 ## ❤️ 支持
 

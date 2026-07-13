@@ -29,21 +29,7 @@ Plays well with [`pi-subagents`](https://github.com/nicobailon/pi-subagents): if
 
 ## 🔄 How it works
 
-```
-Claude Code  ─►  /pi:review · /pi:rescue · /pi:status ...
-                    │
-                    ▼
-            pi-companion.mjs (Node)
-                    │  one pi --mode rpc subprocess per task
-                    ▼
-              Pi coding agent ─► whichever provider/model pi is configured for
-                    │
-                    ▼
-               JSONL events + final assistant message
-                    │
-                    ▼
-        job state files (status / result / cancel)
-```
+![pi-plugin-cc workflow](docs/pi-plugin-cc-workflow.png)
 
 Codex's broker layer is gone — Pi is one-conversation-per-process, so the plugin spawns a fresh `pi --mode rpc` for each task. Background jobs are tracked in workspace-scoped state files. Review prompts inline the JSON schema since Pi has no `outputSchema` knob.
 
@@ -181,15 +167,6 @@ Opt in with `/pi:setup --enable-review-gate`. When a Claude session ends, the pl
 | [codex-plugin-cc](https://github.com/openai/codex-plugin-cc) | Same surface, runs Codex | You want OpenAI's Codex agent + ChatGPT auth |
 | [pi (earendil-works)](https://github.com/earendil-works/pi) | The coding agent this plugin drives | You want to use Pi directly without Claude Code |
 | [pi-subagents](https://github.com/nicobailon/pi-subagents) | Pi extension adding `subagent` tool + `/run` / `/chain` / `/parallel` | Let `/pi:rescue` delegate further to specialized child agents |
-
-## 💬 Community
-
-- **Discord:** https://discord.gg/79JF5Atuk
-- **WeChat:** scan the QR code below
-
-<p align="center">
-  <img src="https://raw.githubusercontent.com/Agents365-ai/images_payment/main/qrcode/agents365ai_wechat_1.png" width="200" alt="WeChat Community Group">
-</p>
 
 ## ❤️ Support
 
