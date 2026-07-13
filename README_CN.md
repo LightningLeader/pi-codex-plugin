@@ -29,7 +29,7 @@
 
 ## 🔄 工作流程
 
-![pi-plugin-cc 工作流程](docs/pi-plugin-cc-workflow_CN.png)
+<img src="docs/pi-plugin-cc-workflow_CN.png" alt="pi-plugin-cc 工作流程" width="80%">
 
 Codex 的 broker 层被去掉 —— Pi 是"一进程一会话"模型，插件给每个任务直接 spawn 一个新的 `pi --mode rpc`。后台作业用工作区作用域的状态文件追踪。Pi 没有 `outputSchema` 这种参数，所以评审 prompt 直接把 JSON schema 内联进去。
 

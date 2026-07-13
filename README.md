@@ -29,7 +29,7 @@ Plays well with [`pi-subagents`](https://github.com/nicobailon/pi-subagents): if
 
 ## 🔄 How it works
 
-![pi-plugin-cc workflow](docs/pi-plugin-cc-workflow.png)
+<img src="docs/pi-plugin-cc-workflow.png" alt="pi-plugin-cc workflow" width="80%">
 
 Codex's broker layer is gone — Pi is one-conversation-per-process, so the plugin spawns a fresh `pi --mode rpc` for each task. Background jobs are tracked in workspace-scoped state files. Review prompts inline the JSON schema since Pi has no `outputSchema` knob.
 
