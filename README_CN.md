@@ -22,10 +22,11 @@
 - **代码评审**：针对 working tree 或基于分支的 diff，输出结构化 findings
 - **对抗式评审**：质疑设计本身，而不是只挑改动里的拼写错误
 - **任务转交**：诊断、重构、长流程救援，前台或后台执行
+- **并行分发**：`/pi:parallel-rescue` 通过 [`pi-subagents`](https://github.com/nicobailon/pi-subagents) 并发跑多个独立任务
 - **后台作业控制**：`status`、`result`、`cancel`，以及可选的 stop-time 评审守门
 - **无 OAuth 登录**：Pi 用 provider 的 API key 认证，不需要 `codex login`
 
-兼容 [`pi-subagents`](https://github.com/nicobailon/pi-subagents)：装了它，`/pi:rescue` 跑的过程中会自然可用，无需任何额外配置。
+深度集成 [`pi-subagents`](https://github.com/nicobailon/pi-subagents)（`pi install npm:pi-subagents`）：`/pi:setup` 会检测安装状态并列出 agent 档案，`/pi:rescue` 的 prompt 会告知 Pi 可用 `subagent` 工具，`/pi:parallel-rescue` 把多个任务分发给并行子代理（scout、researcher、planner、worker、reviewer 等）。
 
 ## 🔄 工作流程
 
@@ -40,7 +41,8 @@ Codex 的 broker 层被去掉 —— Pi 是"一进程一会话"模型，插件�
 | `/pi:setup` | 检查 `pi` 是否安装、provider 是否配置；切换 stop-time 评审守门 |
 | `/pi:review` | 针对本地 git 状态的标准代码评审 |
 | `/pi:adversarial-review` | 可指定 focus 的对抗式评审 —— 质疑实现方案本身 |
-| `/pi:rescue` | 把任务转交给 `pi:pi-rescue` 子代理跑一个 Pi 会话 |
+| `/pi:rescue` | 把任务转交给 `pi:pi-companion-forwarder` 子代理跑一个 Pi 会话 |
+| `/pi:parallel-rescue` | 通过 pi-subagents 并行跑多个独立任务（`subagent({ tasks })` 分发） |
 | `/pi:status [job-id]` | 列出本仓库正在运行 / 最近完成的 Pi 作业 |
 | `/pi:result <job-id>` | 查看一个已完成作业的最终输出 |
 | `/pi:cancel <job-id>` | 终止一个正在运行的后台作业 |
@@ -84,6 +86,7 @@ pi --list-models | head
 > /pi:adversarial-review focus on the new auth middleware
 > /pi:rescue 调研一下 Windows CI 为什么编译失败
 > /pi:rescue --background --model gpt-4o 重构 src/payments/
+> /pi:parallel-rescue "审计 auth 模块" "给 db 查询做基准测试" "更新 API 文档"
 > /pi:status
 > /pi:status task-mpgyiwb9-e3k641 --wait
 > /pi:result task-mpgyiwb9-e3k641
@@ -166,7 +169,7 @@ export PI_PLUGIN_ADVERSARIAL_REVIEW_MODEL=claude-sonnet-4-6
 |---|---|---|
 | [codex-plugin-cc](https://github.com/openai/codex-plugin-cc) | 同样的命令面，底层跑 Codex | 想用 OpenAI Codex agent + ChatGPT 账号时 |
 | [pi (earendil-works)](https://github.com/earendil-works/pi) | 本插件驱动的编码 agent 本体 | 想直接用 Pi、不经 Claude Code 时 |
-| [pi-subagents](https://github.com/nicobailon/pi-subagents) | Pi 扩展，加 `subagent` 工具 + `/run` / `/chain` / `/parallel` | 让 `/pi:rescue` 在内部进一步转交给专门的子代理 |
+| [pi-subagents](https://github.com/nicobailon/pi-subagents) | Pi 扩展，加 `subagent` 工具 + `/run` / `/chain` / `/parallel` | 驱动 `/pi:parallel-rescue`，也让 `/pi:rescue` 能转交给专门的子代理 |
 
 ## ❤️ 支持
 

@@ -22,10 +22,11 @@ A Claude Code plugin that delegates reviews and coding tasks to the [Pi coding a
 - **Code review** against the working tree or a branch base, with structured findings
 - **Adversarial review** that challenges the design — not just spell-checks the diff
 - **Task delegation** for diagnoses, refactors, and longer rescues, foreground or background
+- **Parallel fan-out** — `/pi:parallel-rescue` runs multiple independent tasks concurrently via [`pi-subagents`](https://github.com/nicobailon/pi-subagents)
 - **Background job control** — `status`, `result`, `cancel`, and stop-time review gate
 - **No OAuth** — pi authenticates by API key (provider-specific), no `codex login` required
 
-Plays well with [`pi-subagents`](https://github.com/nicobailon/pi-subagents): if installed, it works inside `/pi:rescue` runs without configuration.
+Integrates with [`pi-subagents`](https://github.com/nicobailon/pi-subagents) (`pi install npm:pi-subagents`): `/pi:setup` detects it and lists the agent profiles, `/pi:rescue` prompts advertise the `subagent` tool to Pi, and `/pi:parallel-rescue` fans multiple tasks out to parallel child agents (scout, researcher, planner, worker, reviewer, …).
 
 ## 🔄 How it works
 
@@ -40,7 +41,8 @@ Codex's broker layer is gone — Pi is one-conversation-per-process, so the plug
 | `/pi:setup` | Verifies `pi` is installed + a provider is configured; toggles the stop-time review gate |
 | `/pi:review` | Standard code review of local git state |
 | `/pi:adversarial-review` | Steerable challenge review — questions the approach itself |
-| `/pi:rescue` | Delegate investigation or implementation to a Pi run via the `pi:pi-rescue` subagent |
+| `/pi:rescue` | Delegate investigation or implementation to a Pi run via the `pi:pi-companion-forwarder` subagent |
+| `/pi:parallel-rescue` | Run multiple independent tasks in parallel via pi-subagents (`subagent({ tasks })` fan-out) |
 | `/pi:status [job-id]` | List active / recent Pi jobs in this repository |
 | `/pi:result <job-id>` | Show the stored final output for a finished job |
 | `/pi:cancel <job-id>` | Terminate a running background job |
@@ -84,6 +86,7 @@ Install the plugin in Claude Code:
 > /pi:adversarial-review focus on the new auth middleware
 > /pi:rescue investigate why the Windows CI build is failing
 > /pi:rescue --background --model gpt-4o refactor src/payments/
+> /pi:parallel-rescue "audit the auth module" "benchmark the db queries" "update the API docs"
 > /pi:status
 > /pi:status task-mpgyiwb9-e3k641 --wait
 > /pi:result task-mpgyiwb9-e3k641
@@ -166,7 +169,7 @@ Opt in with `/pi:setup --enable-review-gate`. When a Claude session ends, the pl
 |---|---|---|
 | [codex-plugin-cc](https://github.com/openai/codex-plugin-cc) | Same surface, runs Codex | You want OpenAI's Codex agent + ChatGPT auth |
 | [pi (earendil-works)](https://github.com/earendil-works/pi) | The coding agent this plugin drives | You want to use Pi directly without Claude Code |
-| [pi-subagents](https://github.com/nicobailon/pi-subagents) | Pi extension adding `subagent` tool + `/run` / `/chain` / `/parallel` | Let `/pi:rescue` delegate further to specialized child agents |
+| [pi-subagents](https://github.com/nicobailon/pi-subagents) | Pi extension adding `subagent` tool + `/run` / `/chain` / `/parallel` | Powers `/pi:parallel-rescue` and lets `/pi:rescue` delegate to specialized child agents |
 
 ## ❤️ Support
 

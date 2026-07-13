@@ -28,6 +28,12 @@
         <mxCell id="8" value="/pi:cancel" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=10;" vertex="1" parent="1">
           <mxGeometry x="460" y="117" width="130" height="22" as="geometry" />
         </mxCell>
+        <mxCell id="20" value="/pi:parallel-rescue" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="320" y="145" width="130" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="21" value="/pi:setup" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="460" y="145" width="130" height="22" as="geometry" />
+        </mxCell>
         <!-- pi-companion.mjs -->
         <mxCell id="9" value="pi-companion.mjs&#xa;(Node.js)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
           <mxGeometry x="100" y="190" width="200" height="50" as="geometry" />
@@ -66,6 +72,16 @@
         <mxCell id="17" value="whichever provider/model&#xa;pi is configured for" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;flowAnimation=1;labelBackgroundColor=#ffffff;fontSize=11;" edge="1" parent="1" source="9" target="10">
           <mxGeometry relative="1" as="geometry">
             <mxPoint x="15" y="0" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <!-- pi-subagents fan-out -->
+        <mxCell id="22" value="pi-subagents (optional)&#xa;parallel child agents:&#xa;scout &#183; worker &#183; reviewer &#8230;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="390" y="305" width="200" height="80" as="geometry" />
+        </mxCell>
+        <!-- Arrow: Pi Coding Agent -> pi-subagents -->
+        <mxCell id="23" value="subagent({ tasks })" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;flowAnimation=1;labelBackgroundColor=#ffffff;fontSize=11;dashed=1;" edge="1" parent="1" source="10" target="22">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="0" y="-12" as="offset" />
           </mxGeometry>
         </mxCell>
         <!-- Arrow: Pi Coding Agent -> JSONL events -->
