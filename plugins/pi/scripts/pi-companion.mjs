@@ -51,14 +51,19 @@ import {
 } from "./lib/tracked-jobs.mjs";
 import { resolveWorkspaceRoot } from "./lib/workspace.mjs";
 import {
+  normalizeReviewResultData,
+  renderPanelReviewResult,
   renderReviewResult,
   renderStoredJobResult,
   renderCancelReport,
   renderJobStatusReport,
   renderSetupReport,
   renderStatusReport,
-  renderTaskResult
+  renderTaskResult,
+  validateReviewResultShape
 } from "./lib/render.mjs";
+import { mergePanelReviews, parseModelList } from "./lib/panel.mjs";
+import { buildModelChain, describeFallback, runWithModelFallback } from "./lib/fallback.mjs";
 
 const ROOT_DIR = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
 const REVIEW_SCHEMA = path.join(ROOT_DIR, "schemas", "review-output.schema.json");
@@ -75,14 +80,17 @@ const STOP_REVIEW_TASK_MARKER = "Run a stop-gate review of the previous Claude t
 // Google, Ollama, LM Studio, or any OpenAI-compatible endpoint).
 const ENV_REVIEW_MODEL = process.env.PI_PLUGIN_REVIEW_MODEL?.trim() || null;
 const ENV_ADVERSARIAL_REVIEW_MODEL = process.env.PI_PLUGIN_ADVERSARIAL_REVIEW_MODEL?.trim() || null;
+// Optional comma-separated fallback chain: when a Pi run fails, the same
+// request is retried with the next model in this list.
+const ENV_FALLBACK_MODELS = parseModelList(process.env.PI_PLUGIN_FALLBACK_MODELS);
 
 function printUsage() {
   console.log(
     [
       "Usage:",
       "  node scripts/pi-companion.mjs setup [--enable-review-gate|--disable-review-gate] [--json]",
-      "  node scripts/pi-companion.mjs review [--wait|--background] [--base <ref>] [--scope <auto|working-tree|branch>]",
-      "  node scripts/pi-companion.mjs adversarial-review [--wait|--background] [--base <ref>] [--scope <auto|working-tree|branch>] [focus text]",
+      "  node scripts/pi-companion.mjs review [--wait|--background] [--base <ref>] [--scope <auto|working-tree|branch>] [--model <model>|--models <m1,m2,...>]",
+      "  node scripts/pi-companion.mjs adversarial-review [--wait|--background] [--base <ref>] [--scope <auto|working-tree|branch>] [--model <model>|--models <m1,m2,...>] [focus text]",
       "  node scripts/pi-companion.mjs task [--background] [--write] [--resume-last|--resume|--fresh] [--model <model>] [--effort <off|minimal|low|medium|high|xhigh>] [prompt]",
       "  node scripts/pi-companion.mjs status [job-id] [--all] [--json]",
       "  node scripts/pi-companion.mjs result [job-id] [--json]",
@@ -219,6 +227,7 @@ async function buildSetupReport(cwd, actionsTaken = []) {
     models: modelsStatus,
     subagents: subagentsStatus,
     availableModels,
+    fallbackModels: ENV_FALLBACK_MODELS,
     sessionRuntime: getSessionRuntimeStatus(process.env, workspaceRoot),
     reviewGateEnabled: Boolean(config.stopReviewGate),
     actionsTaken,
@@ -347,7 +356,7 @@ function resolveLatestTrackedTaskSession(cwd, options = {}) {
   return null;
 }
 
-async function executeReviewRun(request) {
+function prepareReviewRun(request) {
   ensurePiAvailable(request.cwd);
   ensureGitRepository(request.cwd);
 
@@ -359,22 +368,34 @@ async function executeReviewRun(request) {
   const reviewName = request.reviewName ?? "Review";
   const isAdversarial = reviewName === "Adversarial Review";
   const templateName = isAdversarial ? "adversarial-review" : "review";
+
+  const context = collectReviewContext(request.cwd, target);
+  const prompt = buildReviewPrompt(templateName, context, focusText);
+
+  return { target, reviewName, isAdversarial, context, prompt };
+}
+
+async function executeReviewRun(request) {
+  const { target, reviewName, isAdversarial, context, prompt } = prepareReviewRun(request);
   // request.model: explicit --model on the slash command. Highest priority.
   // ENV_*_REVIEW_MODEL: opt-in pin via env var.
   // null: defer to pi's own configured default model.
   const envDefault = isAdversarial ? ENV_ADVERSARIAL_REVIEW_MODEL : ENV_REVIEW_MODEL;
   const model = request.model ?? envDefault ?? null;
 
-  const context = collectReviewContext(request.cwd, target);
-  const prompt = buildReviewPrompt(templateName, context, focusText);
-
-  const result = await runAppServerReview(context.repoRoot, {
-    prompt,
-    model,
-    effort: request.effort,
-    threadName: `Pi ${reviewName}`,
-    onProgress: request.onProgress
-  });
+  const { result, attempts } = await runWithModelFallback(
+    buildModelChain(model, ENV_FALLBACK_MODELS),
+    (attemptModel) =>
+      runAppServerReview(context.repoRoot, {
+        prompt,
+        model: attemptModel,
+        effort: request.effort,
+        threadName: `Pi ${reviewName}`,
+        onProgress: request.onProgress
+      }),
+    request.onProgress
+  );
+  const fallbackNote = describeFallback(attempts);
 
   const parsed = parseStructuredOutput(result.reviewText, {
     status: result.status,
@@ -400,22 +421,135 @@ async function executeReviewRun(request) {
     result: parsed.parsed,
     rawOutput: parsed.rawOutput,
     parseError: parsed.parseError,
-    reasoningSummary: result.reasoningSummary
+    reasoningSummary: result.reasoningSummary,
+    ...(fallbackNote ? { modelAttempts: attempts } : {})
   };
+
+  let rendered = renderReviewResult(parsed, {
+    reviewLabel: reviewName,
+    targetLabel: context.target.label,
+    reasoningSummary: result.reasoningSummary
+  });
+  if (fallbackNote) {
+    rendered = `${rendered}\n${fallbackNote}\n`;
+  }
 
   return {
     exitStatus: result.status,
     piSessionId: result.piSessionId,
     piSessionFile: result.piSessionFile,
     payload,
-    rendered: renderReviewResult(parsed, {
-      reviewLabel: reviewName,
-      targetLabel: context.target.label,
-      reasoningSummary: result.reasoningSummary
-    }),
+    rendered,
     summary:
       parsed.parsed?.summary ?? parsed.parseError ?? firstMeaningfulLine(result.reviewText, `${reviewName} finished.`),
     jobTitle: `Pi ${reviewName}`,
+    jobClass: "review",
+    targetLabel: context.target.label
+  };
+}
+
+function prefixModelProgress(onProgress, model) {
+  if (!onProgress) {
+    return null;
+  }
+  return (eventOrMessage) => {
+    const event =
+      eventOrMessage && typeof eventOrMessage === "object" && !Array.isArray(eventOrMessage)
+        ? eventOrMessage
+        : { message: String(eventOrMessage ?? "") };
+    onProgress({
+      ...event,
+      message: `[${model}] ${event.message ?? ""}`,
+      // Per-model session ids live in the panel payload; a single job-level
+      // resume pointer would be misleading.
+      piSessionId: null,
+      piSessionFile: null
+    });
+  };
+}
+
+async function runPanelMemberReview(prep, request, model) {
+  try {
+    const result = await runAppServerReview(prep.context.repoRoot, {
+      prompt: prep.prompt,
+      model,
+      effort: request.effort,
+      threadName: `Pi ${prep.reviewName} [${model}]`,
+      onProgress: prefixModelProgress(request.onProgress, model)
+    });
+    const parsed = parseStructuredOutput(result.reviewText, {
+      status: result.status,
+      failureMessage: result.error?.message ?? result.stderr
+    });
+
+    let normalized = null;
+    let failure = null;
+    if (result.status !== 0) {
+      failure = result.error?.message?.trim() || "Pi run failed.";
+    } else if (!parsed.parsed) {
+      failure = `invalid structured output: ${parsed.parseError}`;
+    } else {
+      const shapeError = validateReviewResultShape(parsed.parsed);
+      if (shapeError) {
+        failure = `unexpected review shape: ${shapeError}`;
+      } else {
+        normalized = normalizeReviewResultData(parsed.parsed);
+      }
+    }
+
+    return { model, normalized, failure, piSessionId: result.piSessionId ?? null };
+  } catch (error) {
+    return {
+      model,
+      normalized: null,
+      failure: error instanceof Error ? error.message : String(error),
+      piSessionId: null
+    };
+  }
+}
+
+async function executePanelReviewRun(request) {
+  const prep = prepareReviewRun(request);
+  const { target, reviewName, context } = prep;
+
+  const runs = await Promise.all(request.models.map((model) => runPanelMemberReview(prep, request, model)));
+  const merged = mergePanelReviews(runs.map((run) => ({ model: run.model, parsed: run.normalized })));
+
+  const members = runs.map((run) => ({
+    model: run.model,
+    ok: Boolean(run.normalized),
+    findingCount: run.normalized ? run.normalized.findings.length : null,
+    summary: run.normalized?.summary ?? null,
+    failure: run.failure,
+    piSessionId: run.piSessionId
+  }));
+  const okCount = members.filter((member) => member.ok).length;
+  const consensusCount = merged.findings.filter((finding) => finding.foundBy.length >= 2).length;
+  const singleCount = merged.findings.length - consensusCount;
+
+  const payload = {
+    review: `Panel ${reviewName}`,
+    target,
+    models: members,
+    context: {
+      repoRoot: context.repoRoot,
+      branch: context.branch,
+      summary: context.summary
+    },
+    result: merged
+  };
+
+  return {
+    exitStatus: okCount > 0 ? 0 : 1,
+    piSessionId: null,
+    piSessionFile: null,
+    payload,
+    rendered: renderPanelReviewResult(
+      { ...merged, members },
+      { reviewLabel: reviewName, targetLabel: context.target.label }
+    ),
+    summary: `Panel ${reviewName.toLowerCase()}: ${okCount}/${members.length} models ok, ${consensusCount} consensus + ${singleCount} single-model finding${merged.findings.length === 1 ? "" : "s"}`,
+    jobTitle: `Pi Panel ${reviewName}`,
     jobClass: "review",
     targetLabel: context.target.label
   };
@@ -445,21 +579,27 @@ async function executeTaskRun(request) {
     throw new Error("Provide a prompt, a prompt file, piped stdin, or use --resume-last.");
   }
 
-  const result = await runAppServerTurn(workspaceRoot, {
-    resumeSessionId,
-    prompt: request.prompt,
-    defaultPrompt: resumeSessionId ? DEFAULT_CONTINUE_PROMPT : "",
-    model: request.model,
-    effort: request.effort,
-    sandbox: request.write ? null : "read-only",
-    onProgress: request.onProgress,
-    persistThread: true,
-    threadName: resumeSessionId ? null : buildPersistentTaskThreadName(request.prompt || DEFAULT_CONTINUE_PROMPT)
-  });
+  const { result, attempts } = await runWithModelFallback(
+    buildModelChain(request.model ?? null, ENV_FALLBACK_MODELS),
+    (attemptModel) =>
+      runAppServerTurn(workspaceRoot, {
+        resumeSessionId,
+        prompt: request.prompt,
+        defaultPrompt: resumeSessionId ? DEFAULT_CONTINUE_PROMPT : "",
+        model: attemptModel,
+        effort: request.effort,
+        sandbox: request.write ? null : "read-only",
+        onProgress: request.onProgress,
+        persistThread: true,
+        threadName: resumeSessionId ? null : buildPersistentTaskThreadName(request.prompt || DEFAULT_CONTINUE_PROMPT)
+      }),
+    request.onProgress
+  );
+  const fallbackNote = describeFallback(attempts);
 
   const rawOutput = typeof result.finalMessage === "string" ? result.finalMessage : "";
   const failureMessage = result.error?.message ?? result.stderr ?? "";
-  const rendered = renderTaskResult(
+  let rendered = renderTaskResult(
     {
       rawOutput,
       failureMessage,
@@ -471,13 +611,17 @@ async function executeTaskRun(request) {
       write: Boolean(request.write)
     }
   );
+  if (fallbackNote) {
+    rendered = `${rendered}\n${fallbackNote}\n`;
+  }
   const payload = {
     status: result.status,
     piSessionId: result.piSessionId,
     piSessionFile: result.piSessionFile,
     rawOutput,
     touchedFiles: result.touchedFiles,
-    reasoningSummary: result.reasoningSummary
+    reasoningSummary: result.reasoningSummary,
+    ...(fallbackNote ? { modelAttempts: attempts } : {})
   };
 
   return {
@@ -648,7 +792,7 @@ function enqueueBackgroundTask(cwd, job, request) {
 
 async function handleReviewCommand(argv, config) {
   const { options, positionals } = parseCommandInput(argv, {
-    valueOptions: ["base", "scope", "model", "effort", "cwd"],
+    valueOptions: ["base", "scope", "model", "models", "effort", "cwd"],
     booleanOptions: ["json", "background", "wait"],
     aliasMap: {
       m: "model"
@@ -665,7 +809,43 @@ async function handleReviewCommand(argv, config) {
 
   config.validateRequest?.(target, focusText);
 
+  const panelModels = parseModelList(options.models);
+  if (panelModels.length > 0 && options.model) {
+    throw new Error("Choose either --model <one> or --models <m1,m2,...>, not both.");
+  }
+  // A single --models entry is just a model pin; the panel needs 2+.
+  const singleModel = normalizeRequestedModel(options.model) ?? (panelModels.length === 1 ? panelModels[0] : null);
+  const effort = normalizeReasoningEffort(options.effort);
+
   const metadata = buildReviewJobMetadata(config.reviewName, target);
+
+  if (panelModels.length >= 2) {
+    const job = createCompanionJob({
+      prefix: "review",
+      kind: metadata.kind,
+      title: `Pi Panel ${config.reviewName}`,
+      workspaceRoot,
+      jobClass: "review",
+      summary: `Panel (${panelModels.length} models) ${metadata.summary}`
+    });
+    await runForegroundCommand(
+      job,
+      (progress) =>
+        executePanelReviewRun({
+          cwd,
+          base: options.base,
+          scope: options.scope,
+          models: panelModels,
+          effort,
+          focusText,
+          reviewName: config.reviewName,
+          onProgress: progress
+        }),
+      { json: options.json }
+    );
+    return;
+  }
+
   const job = createCompanionJob({
     prefix: "review",
     kind: metadata.kind,
@@ -681,8 +861,8 @@ async function handleReviewCommand(argv, config) {
         cwd,
         base: options.base,
         scope: options.scope,
-        model: normalizeRequestedModel(options.model),
-        effort: normalizeReasoningEffort(options.effort),
+        model: singleModel,
+        effort,
         focusText,
         reviewName: config.reviewName,
         onProgress: progress

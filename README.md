@@ -114,6 +114,31 @@ Then inside Codex: `/pi-review`, `/pi-adversarial-review`, `/pi-rescue`, `/pi-pa
 
 Not available under Codex: the stop-time review gate and session-resume prompts (both rely on Claude Code hooks / subagents). Everything else — including pi-subagents parallel fan-out — works the same.
 
+## 🧑‍⚖️ Multi-model review panel
+
+One reviewer has blind spots; a panel doesn't share them. Passing `--models` to either review command runs the same diff through several models **in parallel** and merges their findings — issues reported by 2+ models rank first with a `found by:` tag:
+
+```text
+> /pi:review --models deepseek-v4-flash,claude-sonnet-4-6,gpt-5-mini
+> /pi:adversarial-review --models deepseek-v4-pro,o1 focus on concurrency
+```
+
+- Consensus findings (2+ models) are listed first; single-model findings follow.
+- Duplicate findings are matched per file with line-range slack; severity escalates to the highest reported and alternate titles are kept.
+- A member that fails (provider error, invalid JSON) is reported inline and does not sink the panel — it succeeds as long as one model returns a valid review.
+- Panel members do not use the `PI_PLUGIN_FALLBACK_MODELS` chain — the panel itself is the redundancy.
+- This only exists because Pi is provider-agnostic: a single-vendor CLI cannot convene a cross-vendor panel.
+
+## 🛟 Automatic model fallback
+
+Set a fallback chain once, and any failed run — provider outage, auth error, exhausted retries — is automatically retried with the next model:
+
+```bash
+export PI_PLUGIN_FALLBACK_MODELS=deepseek-v4-flash,MiniMax-M3
+```
+
+Applies to reviews and rescue tasks alike. When a fallback produced the result, the output ends with a `Model fallback:` note (and the JSON payload carries `modelAttempts`). `/pi:setup` shows the configured chain.
+
 ## Pick your model
 
 The plugin keeps three layers of model resolution:

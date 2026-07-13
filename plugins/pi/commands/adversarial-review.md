@@ -1,6 +1,6 @@
 ---
 description: Run a Pi review that challenges the implementation approach and design choices
-argument-hint: '[--base <ref>] [--scope auto|working-tree|branch] [focus ...]'
+argument-hint: '[--base <ref>] [--scope auto|working-tree|branch] [--models <m1,m2,...>] [focus ...]'
 disable-model-invocation: true
 allowed-tools: Read, Glob, Grep, Bash(node:*), Bash(git:*), AskUserQuestion
 ---
@@ -25,6 +25,7 @@ Execution:
 - It supports working-tree review, branch review, and `--base <ref>`.
 - It does not support `--scope staged` or `--scope unstaged`.
 - Unlike `/pi:review`, it can still take extra focus text after the flags.
+- `--models <m1,m2,...>` (2+ models) runs the adversarial review as a multi-model panel with merged, consensus-ranked findings.
 
 Foreground flow:
 - Run:
