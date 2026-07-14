@@ -197,8 +197,8 @@ export PI_PLUGIN_ADVERSARIAL_REVIEW_MODEL=claude-sonnet-4-6
 | 月之暗面（Kimi） | `kimi 2.6` |
 | MiniMax | `minimax-m3` |
 | 字节（Seed） | `seed-2.1-pro-preview` |
-| 小米（MiMo） | `mimo-v2.5 pro` |
-| Muse | `muse-spark-1.1` |
+| 小米（MiMo） | `mimo-v2.5-standard`（日常）· `mimo-v2.5-pro`（更重） |
+| Meta | `muse-spark-1.1` |
 
 ……以及任何你配置的 OpenAI 兼容端点。可用性和确切 id 取决于你的 `~/.pi/agent/models.json`。
 

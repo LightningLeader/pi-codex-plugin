@@ -197,8 +197,8 @@ The whole point of driving Pi is that you are not locked to Claude or GPT. These
 | Moonshot (Kimi) | `kimi 2.6` |
 | MiniMax | `minimax-m3` |
 | ByteDance (Seed) | `seed-2.1-pro-preview` |
-| Xiaomi (MiMo) | `mimo-v2.5 pro` |
-| Muse | `muse-spark-1.1` |
+| Xiaomi (MiMo) | `mimo-v2.5-standard` (everyday) · `mimo-v2.5-pro` (heavier) |
+| Meta | `muse-spark-1.1` |
 
 …and any other OpenAI-compatible endpoint you configure. Availability and the exact id depend on your `~/.pi/agent/models.json`.
 
