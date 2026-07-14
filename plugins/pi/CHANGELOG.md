@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.5.0
 
 - Sharded parallel review: `/pi:review --shards <N>` (and
   `/pi:adversarial-review`) splits the changed files across N review jobs
