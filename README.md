@@ -22,6 +22,7 @@ A Claude Code plugin that delegates reviews and coding tasks to the [Pi coding a
 - **Adversarial review** that challenges the design — not just spell-checks the diff
 - **Task delegation** for diagnoses, refactors, and longer rescues, foreground or background
 - **Parallel fan-out** — `/pi:parallel-rescue` runs multiple independent tasks concurrently via [`pi-subagents`](https://github.com/nicobailon/pi-subagents)
+- **Sharded parallel review** — `/pi:review --shards <N>` splits a large diff's changed files across N review jobs that run in parallel, then merges the findings
 - **Background job control** — `status`, `result`, `cancel`, and stop-time review gate
 - **No OAuth** — pi authenticates by API key (provider-specific), no `codex login` required
 

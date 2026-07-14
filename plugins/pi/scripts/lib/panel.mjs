@@ -7,7 +7,7 @@
 const SEVERITY_RANK = { critical: 0, high: 1, medium: 2, low: 3 };
 const LINE_SLACK = 3;
 
-function severityRank(severity) {
+export function severityRank(severity) {
   return SEVERITY_RANK[severity] ?? 3;
 }
 

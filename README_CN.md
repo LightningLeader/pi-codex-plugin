@@ -22,6 +22,7 @@
 - **对抗式评审**：质疑设计本身，而不是只挑改动里的拼写错误
 - **任务转交**：诊断、重构、长流程救援，前台或后台执行
 - **并行分发**：`/pi:parallel-rescue` 通过 [`pi-subagents`](https://github.com/nicobailon/pi-subagents) 并发跑多个独立任务
+- **分片并行评审**：`/pi:review --shards <N>` 把大 diff 改动的文件拆成 N 个并行评审任务，再合并 findings
 - **后台作业控制**：`status`、`result`、`cancel`，以及可选的 stop-time 评审守门
 - **无 OAuth 登录**：Pi 用 provider 的 API key 认证，不需要 `codex login`
 

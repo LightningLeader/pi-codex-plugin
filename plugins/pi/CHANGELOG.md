@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- Sharded parallel review: `/pi:review --shards <N>` (and
+  `/pi:adversarial-review`) splits the changed files across N review jobs
+  that run in parallel — each job's diff is scoped to only its own files —
+  then merges the findings (sorted by severity) into one review result.
+  Activates only when `--shards` is 2 or more and more than one file
+  changed; otherwise falls back to the normal single review. Not combinable
+  with `--models`. New `lib/shard.mjs`; 11 new tests (193 total).
+
 ## 0.4.0
 
 - Model racing: `/pi:rescue --race m1,m2,...` runs the same task with every

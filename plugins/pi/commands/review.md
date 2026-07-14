@@ -1,6 +1,6 @@
 ---
 description: Run a Pi code review against local git state
-argument-hint: '[--base <ref>] [--scope auto|working-tree|branch] [--models <m1,m2,...>]'
+argument-hint: '[--base <ref>] [--scope auto|working-tree|branch] [--models <m1,m2,...>|--shards <N>]'
 disable-model-invocation: true
 allowed-tools: Read, Glob, Grep, Bash(node:*), Bash(git:*), AskUserQuestion
 ---
@@ -20,6 +20,7 @@ Execution:
 - If there is nothing to review (empty working tree and no base branch diff), say so and skip the review.
 - `/pi:review` does not accept extra focus text. If the user needs custom review instructions or more adversarial framing, they should use `/pi:adversarial-review`.
 - `--models <m1,m2,...>` (2+ models) runs a multi-model review panel: the same diff is reviewed by every listed model in parallel and the findings are merged, with consensus findings (reported by 2+ models) ranked first.
+- `--shards <N>` (N >= 2, and only when more than one file changed) splits the changed files across N review jobs that run in parallel, each scoped to only its own files, then merges the findings into one result. Not combinable with `--models`.
 
 Foreground flow:
 - Run:
