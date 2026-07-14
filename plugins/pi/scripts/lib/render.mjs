@@ -247,6 +247,46 @@ export function renderSetupReport(report) {
   return `${lines.join("\n").trimEnd()}\n`;
 }
 
+// Compact severity breakdown, e.g. "5 findings: 1 critical, 2 high, 2 low".
+function summarizeSeverityCounts(findings) {
+  if (findings.length === 0) {
+    return "No material findings.";
+  }
+  const counts = new Map();
+  for (const finding of findings) {
+    const severity = finding.severity || "low";
+    counts.set(severity, (counts.get(severity) ?? 0) + 1);
+  }
+  const parts = [...counts.entries()]
+    .sort((left, right) => severityRank(left[0]) - severityRank(right[0]))
+    .map(([severity, count]) => `${count} ${severity}`);
+  return `${findings.length} finding${findings.length === 1 ? "" : "s"}: ${parts.join(", ")}`;
+}
+
+// --out-file mode: the full rendered output is written to a file; only this
+// short summary is relayed to the caller, so a large review does not flood the
+// caller's context. Reviews get verdict + severity counts + one line per
+// finding; free-form runs (task/race) fall back to their one-line summary.
+export function renderOutFileSummary(execution, outFile) {
+  const lines = [];
+  const result = execution.payload?.result;
+  const findings = Array.isArray(result?.findings) ? result.findings : null;
+  if (result && typeof result.verdict === "string" && result.verdict.trim()) {
+    lines.push(`Verdict: ${result.verdict}`);
+  }
+  if (findings) {
+    lines.push(summarizeSeverityCounts(findings));
+    const sorted = [...findings].sort((left, right) => severityRank(left.severity) - severityRank(right.severity));
+    for (const finding of sorted) {
+      lines.push(`- [${finding.severity}] ${finding.title} (${finding.file}${formatLineRange(finding)})`);
+    }
+  } else if (execution.summary) {
+    lines.push(execution.summary);
+  }
+  lines.push("", `Full output written to ${outFile}`);
+  return `${lines.join("\n")}\n`;
+}
+
 export function renderReviewResult(parsedResult, meta) {
   if (!parsedResult.parsed) {
     const lines = [

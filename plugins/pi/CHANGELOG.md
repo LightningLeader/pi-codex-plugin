@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- `--out-file <path>` on `/pi:review`, `/pi:adversarial-review`, and `/pi:rescue`
+  writes Pi's full output to a file and returns only a short summary (verdict,
+  finding counts, one line per finding). This keeps a large review or task
+  result out of the calling agent's context to save tokens — relay the summary,
+  open the file for detail. New `renderOutFileSummary`; 4 new tests (197 total).
+
 ## 0.5.0
 
 - Sharded parallel review: `/pi:review --shards <N>` (and
