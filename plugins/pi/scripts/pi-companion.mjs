@@ -108,7 +108,7 @@ function printUsage() {
       "  node scripts/pi-companion.mjs adversarial-review [--wait|--background] [--base <ref>] [--scope <auto|working-tree|branch>] [--model <model>|--models <m1,m2,...>] [--shards <N>] [--out-file <path>] [focus text]",
       "  node scripts/pi-companion.mjs task [--background] [--write] [--resume-last|--resume|--fresh] [--model <model>|--race <m1,m2,...>] [--effort <off|minimal|low|medium|high|xhigh>] [--out-file <path>] [prompt]",
       "  node scripts/pi-companion.mjs status [job-id] [--all] [--json]",
-      "  node scripts/pi-companion.mjs result [job-id] [--json]",
+      "  node scripts/pi-companion.mjs result [job-id] [--json] [--out-file <path>]",
       "  node scripts/pi-companion.mjs cancel [job-id] [--json]"
     ].join("\n")
   );
@@ -1341,11 +1341,12 @@ async function handleStatus(argv) {
 
 function handleResult(argv) {
   const { options, positionals } = parseCommandInput(argv, {
-    valueOptions: ["cwd"],
+    valueOptions: ["cwd", "out-file"],
     booleanOptions: ["json"]
   });
 
   const cwd = resolveCommandCwd(options);
+  const outFile = options["out-file"] ? path.resolve(cwd, options["out-file"]) : null;
   const reference = positionals[0] ?? "";
   const { workspaceRoot, job } = resolveResultJob(cwd, reference);
   const storedJob = readStoredJob(workspaceRoot, job.id);
@@ -1353,8 +1354,16 @@ function handleResult(argv) {
     job,
     storedJob
   };
+  const rendered = renderStoredJobResult(job, storedJob);
 
-  outputCommandResult(payload, renderStoredJobResult(job, storedJob), options.json);
+  if (outFile && !options.json) {
+    // Write the stored full result to a file and relay only a short summary,
+    // so fetching a large background result does not flood the caller's context.
+    fs.writeFileSync(outFile, rendered);
+    process.stdout.write(renderOutFileSummary({ summary: job.summary }, outFile));
+  } else {
+    outputCommandResult(payload, rendered, options.json);
+  }
 }
 
 function handleTaskResumeCandidate(argv) {

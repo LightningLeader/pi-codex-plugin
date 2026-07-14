@@ -96,7 +96,7 @@ Install the plugin in Claude Code:
 
 `--effort <off|minimal|low|medium|high|xhigh>` is passed through to Pi via `set_thinking_level`. Models that do not support thinking silently ignore it (the plugin logs a one-line note to stderr when this happens).
 
-`--out-file <path>` (on `/pi:review`, `/pi:adversarial-review`, `/pi:rescue`) writes Pi's full output to a file and returns only a short summary — verdict, finding counts, one line per finding. The heavy reasoning already runs on the cheaper model; this also keeps the large result out of the calling agent's context, so a big review doesn't burn Claude Code tokens on the relay. Open the file for the full detail.
+`--out-file <path>` (on `/pi:review`, `/pi:adversarial-review`, `/pi:rescue`, `/pi:result`) writes Pi's full output to a file and returns only a short summary — verdict, finding counts, one line per finding. The heavy reasoning already runs on the cheaper model; this also keeps the large result out of the calling agent's context, so a big review doesn't burn Claude Code tokens on the relay. Open the file for the full detail.
 
 ## 🧩 Use from Codex
 

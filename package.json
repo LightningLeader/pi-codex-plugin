@@ -1,6 +1,6 @@
 {
   "name": "@agents365/pi-plugin-cc",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "private": true,
   "type": "module",
   "description": "Use the Pi coding agent from Claude Code to review code or delegate tasks.",
