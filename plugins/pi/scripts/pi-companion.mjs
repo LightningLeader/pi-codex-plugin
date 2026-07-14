@@ -26,10 +26,14 @@ import {
   captureWorktreePatch,
   collectReviewContext,
   ensureGitRepository,
+  getCurrentBranch,
+  getHeadSha,
   getWorkingTreeState,
+  isAncestor,
   removeRaceWorktree,
   resolveReviewTarget
 } from "./lib/git.mjs";
+import { readReviewCache, writeReviewCache } from "./lib/review-cache.mjs";
 import { binaryAvailable, runCommand, terminateProcessTree } from "./lib/process.mjs";
 import { loadPromptTemplate, interpolateTemplate } from "./lib/prompts.mjs";
 import {
@@ -104,8 +108,8 @@ function printUsage() {
     [
       "Usage:",
       "  node scripts/pi-companion.mjs setup [--enable-review-gate|--disable-review-gate] [--json]",
-      "  node scripts/pi-companion.mjs review [--wait|--background] [--base <ref>] [--scope <auto|working-tree|branch>] [--model <model>|--models <m1,m2,...>] [--shards <N>] [--out-file <path>]",
-      "  node scripts/pi-companion.mjs adversarial-review [--wait|--background] [--base <ref>] [--scope <auto|working-tree|branch>] [--model <model>|--models <m1,m2,...>] [--shards <N>] [--out-file <path>] [focus text]",
+      "  node scripts/pi-companion.mjs review [--wait|--background] [--base <ref>] [--scope <auto|working-tree|branch>] [--incremental] [--model <model>|--models <m1,m2,...>] [--shards <N>] [--out-file <path>]",
+      "  node scripts/pi-companion.mjs adversarial-review [--wait|--background] [--base <ref>] [--scope <auto|working-tree|branch>] [--incremental] [--model <model>|--models <m1,m2,...>] [--shards <N>] [--out-file <path>] [focus text]",
       "  node scripts/pi-companion.mjs task [--background] [--write] [--resume-last|--resume|--fresh] [--model <model>|--race <m1,m2,...>] [--effort <off|minimal|low|medium|high|xhigh>] [--out-file <path>] [prompt]",
       "  node scripts/pi-companion.mjs status [job-id] [--all] [--json]",
       "  node scripts/pi-companion.mjs result [job-id] [--json] [--out-file <path>]",
@@ -1071,10 +1075,23 @@ function enqueueBackgroundTask(cwd, job, request) {
   };
 }
 
+// After a successful review (incremental or full), record HEAD as the new
+// per-branch marker so the next --incremental review starts from here.
+// Detached HEAD has no branch to key the cache on, so it is skipped.
+function maybeUpdateReviewCache(workspaceRoot, cwd, execution) {
+  if (execution?.exitStatus !== 0) {
+    return;
+  }
+  const branch = getCurrentBranch(cwd);
+  if (branch !== "HEAD") {
+    writeReviewCache(workspaceRoot, branch, getHeadSha(cwd));
+  }
+}
+
 async function handleReviewCommand(argv, config) {
   const { options, positionals } = parseCommandInput(argv, {
     valueOptions: ["base", "scope", "model", "models", "shards", "effort", "cwd", "out-file"],
-    booleanOptions: ["json", "background", "wait"],
+    booleanOptions: ["json", "background", "wait", "incremental"],
     aliasMap: {
       m: "model"
     }
@@ -1084,9 +1101,39 @@ async function handleReviewCommand(argv, config) {
   const workspaceRoot = resolveCommandWorkspace(options);
   const focusText = positionals.join(" ").trim();
   const outFile = options["out-file"] ? path.resolve(cwd, options["out-file"]) : null;
+
+  const incremental = Boolean(options.incremental);
+  if (incremental && options.base) {
+    throw new Error("Choose either --incremental or --base.");
+  }
+
+  let reviewBase = options.base;
+  let reviewScope = options.scope;
+
+  if (incremental) {
+    const branch = getCurrentBranch(cwd);
+    const headSha = getHeadSha(cwd);
+    const cachedSha = readReviewCache(workspaceRoot, branch);
+    if (cachedSha && cachedSha === headSha) {
+      process.stdout.write(
+        `No new commits to review since the last review on ${branch} (${headSha.slice(0, 9)}).\n`
+      );
+      return;
+    }
+    if (cachedSha && isAncestor(cwd, cachedSha) && cachedSha !== headSha) {
+      // The incremental delta: only the commits since the cached marker.
+      reviewBase = cachedSha;
+      reviewScope = "branch";
+    } else {
+      // No cache yet, or the cached sha is no longer an ancestor of HEAD
+      // (rebase, history rewrite, or a branch switch) — fall back to a full review.
+      process.stderr.write(`No valid review cache for ${branch}; running a full review.\n`);
+    }
+  }
+
   const target = resolveReviewTarget(cwd, {
-    base: options.base,
-    scope: options.scope
+    base: reviewBase,
+    scope: reviewScope
   });
 
   config.validateRequest?.(target, focusText);
@@ -1114,13 +1161,13 @@ async function handleReviewCommand(argv, config) {
       jobClass: "review",
       summary: `Panel (${panelModels.length} models) ${metadata.summary}`
     });
-    await runForegroundCommand(
+    const execution = await runForegroundCommand(
       job,
       (progress) =>
         executePanelReviewRun({
           cwd,
-          base: options.base,
-          scope: options.scope,
+          base: reviewBase,
+          scope: reviewScope,
           models: panelModels,
           effort,
           focusText,
@@ -1129,6 +1176,7 @@ async function handleReviewCommand(argv, config) {
         }),
       { json: options.json, outFile }
     );
+    maybeUpdateReviewCache(workspaceRoot, cwd, execution);
     return;
   }
 
@@ -1141,13 +1189,13 @@ async function handleReviewCommand(argv, config) {
       jobClass: "review",
       summary: `Sharded (${shardCount} jobs) ${metadata.summary}`
     });
-    await runForegroundCommand(
+    const execution = await runForegroundCommand(
       job,
       (progress) =>
         executeShardedReviewRun({
           cwd,
-          base: options.base,
-          scope: options.scope,
+          base: reviewBase,
+          scope: reviewScope,
           model: singleModel,
           shards: shardCount,
           effort,
@@ -1157,6 +1205,7 @@ async function handleReviewCommand(argv, config) {
         }),
       { json: options.json, outFile }
     );
+    maybeUpdateReviewCache(workspaceRoot, cwd, execution);
     return;
   }
 
@@ -1168,13 +1217,13 @@ async function handleReviewCommand(argv, config) {
     jobClass: "review",
     summary: metadata.summary
   });
-  await runForegroundCommand(
+  const execution = await runForegroundCommand(
     job,
     (progress) =>
       executeReviewRun({
         cwd,
-        base: options.base,
-        scope: options.scope,
+        base: reviewBase,
+        scope: reviewScope,
         model: singleModel,
         effort,
         focusText,
@@ -1183,6 +1232,7 @@ async function handleReviewCommand(argv, config) {
       }),
     { json: options.json, outFile }
   );
+  maybeUpdateReviewCache(workspaceRoot, cwd, execution);
 }
 
 async function handleReview(argv) {

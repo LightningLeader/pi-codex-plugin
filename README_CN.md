@@ -98,6 +98,8 @@ pi --list-models | head
 
 `--out-file <path>`（用于 `/pi:review`、`/pi:adversarial-review`、`/pi:rescue`、`/pi:result`）把 Pi 的完整输出写到文件，只返回一段简短摘要——verdict、findings 计数、每条一行。繁重推理本就跑在更便宜的模型上；这一步还把大段结果挡在调用方的上下文之外，大型评审就不会在"转述"上烧 Claude Code 的 token。要看全文就打开那个文件。
 
+`--incremental`（用于 `/pi:review`、`/pi:adversarial-review`）只评审当前分支上自上次评审以来的新提交，靠一份按分支缓存的"上次评审提交"记录来实现——跳过已经审过的代码，省下 Pi 的输入 token 和时间。没有可用缓存时会自动回退为全量评审。
+
 ## 🧩 在 Codex 里使用
 
 本插件的核心是一个与宿主无关的 CLI（`pi-companion.mjs`）—— 任何能跑 shell 命令的 coding agent 都能驱动它。对 OpenAI 的 Codex CLI，安装自带的 [custom prompts](codex-prompts/)：

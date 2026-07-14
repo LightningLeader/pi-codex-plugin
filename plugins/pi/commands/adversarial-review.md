@@ -1,6 +1,6 @@
 ---
 description: Run a Pi review that challenges the implementation approach and design choices
-argument-hint: '[--base <ref>] [--scope auto|working-tree|branch] [--models <m1,m2,...>] [--out-file <path>] [focus ...]'
+argument-hint: '[--base <ref>] [--scope auto|working-tree|branch] [--incremental] [--models <m1,m2,...>] [--out-file <path>] [focus ...]'
 disable-model-invocation: true
 allowed-tools: Read, Glob, Grep, Bash(node:*), Bash(git:*), AskUserQuestion
 ---

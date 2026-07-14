@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+- Incremental review: `/pi:review --incremental` (and `/pi:adversarial-review`)
+  reviews only the commits since the last review on the current branch,
+  instead of the full branch diff. A per-(workspace, branch) cache tracks the
+  last-reviewed commit sha; after any successful review, HEAD is recorded as
+  the new marker. Falls back to a full review when there is no valid cache
+  (first run, or the cached commit is no longer an ancestor of HEAD after a
+  rebase/history rewrite). Not combinable with `--base`; composes with
+  `--models`/`--shards`. Only committed changes are covered — uncommitted
+  working-tree changes are not part of the incremental diff. New
+  `lib/review-cache.mjs` + `getHeadSha`/`isAncestor` in `lib/git.mjs`;
+  8 new tests (205 total).
+
 ## 0.6.0
 
 - `--out-file <path>` on `/pi:review`, `/pi:adversarial-review`, `/pi:rescue`,
