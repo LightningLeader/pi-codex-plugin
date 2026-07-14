@@ -5,13 +5,13 @@
   },
   "metadata": {
     "description": "Pi plugins to use in Claude Code for delegation and code review — model-agnostic, works with any provider pi is configured for.",
-    "version": "0.3.0"
+    "version": "0.4.0"
   },
   "plugins": [
     {
       "name": "pi",
       "description": "Use the Pi coding agent from Claude Code to review code or delegate tasks.",
-      "version": "0.3.0",
+      "version": "0.4.0",
       "author": {
         "name": "Agents365-ai"
       },

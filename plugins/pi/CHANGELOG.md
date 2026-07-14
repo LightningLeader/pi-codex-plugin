@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.4.0
+
+- Model racing: `/pi:rescue --race m1,m2,...` runs the same task with every
+  listed model in parallel and presents each racer's result so a winner can
+  be picked. Write races isolate each racer in its own git worktree created
+  from HEAD (racers can never touch the user's tree or each other) and
+  capture each racer's result as a patch — apply the winner with
+  `git apply <patch>`. Read-only races present the answers side by side.
+  Works foreground and `--background`; not combinable with `--model` or
+  `--resume`. New `lib/race.mjs` + worktree helpers in `lib/git.mjs`;
+  10 new tests (182 total) including a real-worktree integration test.
+
 ## 0.3.0
 
 - Multi-model review panel: `/pi:review --models m1,m2,...` (and

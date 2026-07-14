@@ -131,6 +131,37 @@ export function getWorkingTreeState(cwd) {
   };
 }
 
+// --- Race worktrees -------------------------------------------------------
+// Each write racer runs in a detached worktree created from HEAD so parallel
+// racers can never touch the user's working tree or each other.
+
+export function addRaceWorktree(repoRoot, worktreePath) {
+  gitChecked(repoRoot, ["worktree", "add", "--detach", worktreePath, "HEAD"]);
+}
+
+export function removeRaceWorktree(repoRoot, worktreePath) {
+  const result = git(repoRoot, ["worktree", "remove", "--force", worktreePath]);
+  if (result.status !== 0) {
+    // Worktree dir may already be gone; drop the stale registration.
+    git(repoRoot, ["worktree", "prune"]);
+  }
+}
+
+const RACE_PATCH_MAX_BYTES = 32 * 1024 * 1024;
+
+export function captureWorktreePatch(worktreePath) {
+  // Stage everything (including untracked files) so one diff captures the
+  // racer's full result; the worktree is discarded afterwards, never committed.
+  gitChecked(worktreePath, ["add", "-A"]);
+  const patch = gitChecked(worktreePath, ["diff", "--cached", "--binary"], {
+    maxBuffer: RACE_PATCH_MAX_BYTES
+  }).stdout;
+  const stat = gitChecked(worktreePath, ["diff", "--cached", "--stat"], {
+    maxBuffer: RACE_PATCH_MAX_BYTES
+  }).stdout.trim();
+  return { patch, stat, isEmpty: !patch.trim() };
+}
+
 export function resolveReviewTarget(cwd, options = {}) {
   ensureGitRepository(cwd);
 

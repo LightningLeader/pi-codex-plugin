@@ -2,6 +2,7 @@
 
 import { spawn } from "node:child_process";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
@@ -20,13 +21,22 @@ import {
   runAppServerTurn
 } from "./lib/pi.mjs";
 import { readStdinIfPiped } from "./lib/fs.mjs";
-import { collectReviewContext, ensureGitRepository, resolveReviewTarget } from "./lib/git.mjs";
+import {
+  addRaceWorktree,
+  captureWorktreePatch,
+  collectReviewContext,
+  ensureGitRepository,
+  getWorkingTreeState,
+  removeRaceWorktree,
+  resolveReviewTarget
+} from "./lib/git.mjs";
 import { binaryAvailable, runCommand, terminateProcessTree } from "./lib/process.mjs";
 import { loadPromptTemplate, interpolateTemplate } from "./lib/prompts.mjs";
 import {
   generateJobId,
   getConfig,
   listJobs,
+  resolveJobsDir,
   setConfig,
   upsertJob,
   writeJobFile
@@ -53,6 +63,7 @@ import { resolveWorkspaceRoot } from "./lib/workspace.mjs";
 import {
   normalizeReviewResultData,
   renderPanelReviewResult,
+  renderRaceResult,
   renderReviewResult,
   renderStoredJobResult,
   renderCancelReport,
@@ -64,6 +75,7 @@ import {
 } from "./lib/render.mjs";
 import { mergePanelReviews, parseModelList } from "./lib/panel.mjs";
 import { buildModelChain, describeFallback, runWithModelFallback } from "./lib/fallback.mjs";
+import { buildRacerLabels, buildRaceWorktreePath } from "./lib/race.mjs";
 
 const ROOT_DIR = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
 const REVIEW_SCHEMA = path.join(ROOT_DIR, "schemas", "review-output.schema.json");
@@ -91,7 +103,7 @@ function printUsage() {
       "  node scripts/pi-companion.mjs setup [--enable-review-gate|--disable-review-gate] [--json]",
       "  node scripts/pi-companion.mjs review [--wait|--background] [--base <ref>] [--scope <auto|working-tree|branch>] [--model <model>|--models <m1,m2,...>]",
       "  node scripts/pi-companion.mjs adversarial-review [--wait|--background] [--base <ref>] [--scope <auto|working-tree|branch>] [--model <model>|--models <m1,m2,...>] [focus text]",
-      "  node scripts/pi-companion.mjs task [--background] [--write] [--resume-last|--resume|--fresh] [--model <model>] [--effort <off|minimal|low|medium|high|xhigh>] [prompt]",
+      "  node scripts/pi-companion.mjs task [--background] [--write] [--resume-last|--resume|--fresh] [--model <model>|--race <m1,m2,...>] [--effort <off|minimal|low|medium|high|xhigh>] [prompt]",
       "  node scripts/pi-companion.mjs status [job-id] [--all] [--json]",
       "  node scripts/pi-companion.mjs result [job-id] [--json]",
       "  node scripts/pi-companion.mjs cancel [job-id] [--json]"
@@ -555,7 +567,128 @@ async function executePanelReviewRun(request) {
   };
 }
 
+async function runRacer(request, racer, context) {
+  const onProgress = prefixModelProgress(request.onProgress, racer.model);
+  let worktreePath = null;
+  try {
+    let runCwd = request.cwd;
+    if (context.write) {
+      worktreePath = buildRaceWorktreePath(os.tmpdir(), request.jobId ?? `adhoc-${process.pid}`, racer.slug);
+      fs.mkdirSync(path.dirname(worktreePath), { recursive: true });
+      addRaceWorktree(context.repoRoot, worktreePath);
+      onProgress?.({ message: `Racer worktree ready at ${worktreePath}.`, phase: "starting" });
+      runCwd = worktreePath;
+    }
+
+    const result = await runAppServerTurn(runCwd, {
+      prompt: request.prompt,
+      model: racer.model,
+      effort: request.effort,
+      sandbox: context.write ? null : "read-only",
+      onProgress,
+      persistThread: true,
+      threadName: `Pi Race [${racer.model}]`
+    });
+
+    const patch =
+      context.write && result.status === 0 && worktreePath ? captureWorktreePatch(worktreePath) : null;
+
+    return {
+      model: racer.model,
+      slug: racer.slug,
+      ok: result.status === 0,
+      finalMessage: typeof result.finalMessage === "string" ? result.finalMessage : "",
+      failure: result.status === 0 ? null : (result.error?.message ?? result.stderr ?? "Run failed."),
+      piSessionId: result.piSessionId ?? null,
+      patch
+    };
+  } catch (error) {
+    return {
+      model: racer.model,
+      slug: racer.slug,
+      ok: false,
+      finalMessage: "",
+      failure: error instanceof Error ? error.message : String(error),
+      piSessionId: null,
+      patch: null
+    };
+  } finally {
+    if (worktreePath) {
+      try {
+        removeRaceWorktree(context.repoRoot, worktreePath);
+      } catch {
+        // best-effort cleanup; a stale worktree is prunable with `git worktree prune`
+      }
+    }
+  }
+}
+
+async function executeRaceRun(request) {
+  ensurePiAvailable(request.cwd);
+  if (!request.prompt) {
+    throw new Error("Provide a prompt for the race.");
+  }
+
+  const write = Boolean(request.write);
+  const racers = buildRacerLabels(request.raceModels);
+  const context = { write, repoRoot: null };
+  let dirtyWarning = null;
+  if (write) {
+    context.repoRoot = ensureGitRepository(request.cwd);
+    if (getWorkingTreeState(context.repoRoot).isDirty) {
+      dirtyWarning = "Working tree has uncommitted changes; racers start from HEAD and cannot see them.";
+      request.onProgress?.({ message: dirtyWarning, phase: "starting" });
+    }
+  }
+
+  const results = await Promise.all(racers.map((racer) => runRacer(request, racer, context)));
+
+  const workspaceRoot = resolveWorkspaceRoot(request.cwd);
+  const jobsDir = resolveJobsDir(workspaceRoot);
+  fs.mkdirSync(jobsDir, { recursive: true });
+
+  const racersPayload = results.map((result) => {
+    let patchFile = null;
+    if (result.patch && !result.patch.isEmpty) {
+      patchFile = path.join(jobsDir, `${request.jobId ?? "race"}-${result.slug}.patch`);
+      fs.writeFileSync(patchFile, result.patch.patch, "utf8");
+    }
+    return {
+      model: result.model,
+      ok: result.ok,
+      failure: result.failure,
+      piSessionId: result.piSessionId,
+      finalMessage: result.finalMessage,
+      patchFile,
+      patchStat: result.patch?.stat ?? null,
+      patchEmpty: result.patch ? result.patch.isEmpty : null
+    };
+  });
+
+  const okCount = racersPayload.filter((racer) => racer.ok).length;
+  const rendered = renderRaceResult(
+    { write, dirtyWarning, racers: racersPayload },
+    { taskSummary: shorten(request.prompt) }
+  );
+
+  return {
+    exitStatus: okCount > 0 ? 0 : 1,
+    piSessionId: null,
+    piSessionFile: null,
+    payload: { race: true, write, dirtyWarning, racers: racersPayload },
+    rendered,
+    summary: `Race: ${okCount}/${racersPayload.length} models ok`,
+    jobTitle: "Pi Race",
+    jobClass: "task",
+    write
+  };
+}
+
 async function executeTaskRun(request) {
+  if (Array.isArray(request.raceModels) && request.raceModels.length >= 2) {
+    return executeRaceRun(request);
+  }
+
   const workspaceRoot = resolveWorkspaceRoot(request.cwd);
   ensurePiAvailable(request.cwd);
 
@@ -645,7 +778,13 @@ function buildReviewJobMetadata(reviewName, target) {
   };
 }
 
-function buildTaskRunMetadata({ prompt, resumeLast = false }) {
+function buildTaskRunMetadata({ prompt, resumeLast = false, raceModels = null }) {
+  if (Array.isArray(raceModels) && raceModels.length >= 2) {
+    return {
+      title: "Pi Race",
+      summary: `Race (${raceModels.length} models): ${shorten(prompt || "Task")}`
+    };
+  }
   if (!resumeLast && String(prompt ?? "").includes(STOP_REVIEW_TASK_MARKER)) {
     return {
       title: "Pi Stop Gate Review",
@@ -709,7 +848,7 @@ function buildTaskJob(workspaceRoot, taskMetadata, write) {
   });
 }
 
-function buildTaskRequest({ cwd, model, effort, prompt, write, resumeLast, jobId }) {
+function buildTaskRequest({ cwd, model, effort, prompt, write, resumeLast, jobId, raceModels = null }) {
   return {
     cwd,
     model,
@@ -717,7 +856,8 @@ function buildTaskRequest({ cwd, model, effort, prompt, write, resumeLast, jobId
     prompt,
     write,
     resumeLast,
-    jobId
+    jobId,
+    raceModels
   };
 }
 
@@ -880,7 +1020,7 @@ async function handleReview(argv) {
 
 async function handleTask(argv) {
   const { options, positionals } = parseCommandInput(argv, {
-    valueOptions: ["model", "effort", "cwd", "prompt-file"],
+    valueOptions: ["model", "effort", "cwd", "prompt-file", "race"],
     booleanOptions: ["json", "write", "resume-last", "resume", "fresh", "background"],
     aliasMap: {
       m: "model"
@@ -889,7 +1029,13 @@ async function handleTask(argv) {
 
   const cwd = resolveCommandCwd(options);
   const workspaceRoot = resolveCommandWorkspace(options);
-  const model = normalizeRequestedModel(options.model);
+  const raceList = parseModelList(options.race);
+  if (raceList.length > 0 && options.model) {
+    throw new Error("Choose either --model <one> or --race <m1,m2,...>, not both.");
+  }
+  // A single --race entry is just a model pin; a race needs 2+.
+  const model = normalizeRequestedModel(options.model) ?? (raceList.length === 1 ? raceList[0] : null);
+  const raceModels = raceList.length >= 2 ? raceList : null;
   const effort = normalizeReasoningEffort(options.effort);
   const prompt = readTaskPrompt(cwd, options, positionals);
 
@@ -898,10 +1044,14 @@ async function handleTask(argv) {
   if (resumeLast && fresh) {
     throw new Error("Choose either --resume/--resume-last or --fresh.");
   }
+  if (raceModels && resumeLast) {
+    throw new Error("--race starts fresh racer sessions; it cannot be combined with --resume/--resume-last.");
+  }
   const write = Boolean(options.write);
   const taskMetadata = buildTaskRunMetadata({
     prompt,
-    resumeLast
+    resumeLast,
+    raceModels
   });
 
   if (options.background) {
@@ -916,7 +1066,8 @@ async function handleTask(argv) {
       prompt,
       write,
       resumeLast,
-      jobId: job.id
+      jobId: job.id,
+      raceModels
     });
     const { payload } = enqueueBackgroundTask(cwd, job, request);
     outputCommandResult(payload, renderQueuedTaskLaunch(payload), options.json);
@@ -935,6 +1086,7 @@ async function handleTask(argv) {
         write,
         resumeLast,
         jobId: job.id,
+        raceModels,
         onProgress: progress
       }),
     { json: options.json }

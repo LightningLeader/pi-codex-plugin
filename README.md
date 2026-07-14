@@ -139,6 +139,20 @@ export PI_PLUGIN_FALLBACK_MODELS=deepseek-v4-flash,MiniMax-M3
 
 Applies to reviews and rescue tasks alike. When a fallback produced the result, the output ends with a `Model fallback:` note (and the JSON payload carries `modelAttempts`). `/pi:setup` shows the configured chain.
 
+## 🏁 Model racing
+
+For hard problems, run the same rescue task with several models **in parallel** and pick the winner:
+
+```text
+> /pi:rescue --race deepseek-v4-pro,claude-sonnet-4-6 fix the flaky retry logic in src/queue.mjs
+> /pi:rescue --race deepseek-v4-flash,gemini-2.5-pro why does the Windows CI build fail?
+```
+
+- **Write races** (`--write`, the `/pi:rescue` default): each racer works in an isolated git worktree created from `HEAD` — racers can never touch your working tree or each other. Each racer's result is captured as a patch; review them and apply exactly one with `git apply <patch>`.
+- **Read-only races** (investigations): racers analyze the same tree; the output presents each answer side by side — agreement across models is a strong signal.
+- A racer that fails or produces no changes is reported as such; the race succeeds while at least one racer finishes.
+- Not combinable with `--model` or `--resume` (each racer starts a fresh session). Racers start from `HEAD`, so commit or stash first if the task concerns uncommitted work.
+
 ## Pick your model
 
 The plugin keeps three layers of model resolution:

@@ -29,6 +29,7 @@ Forwarding rules:
 - Leave `--effort` unset unless the user explicitly requests a specific reasoning effort.
 - Leave model unset by default. Only add `--model` when the user explicitly asks for a specific model. Pass the model id through verbatim (e.g. `deepseek-v4-pro`, `deepseek-v4-flash`).
 - Treat `--effort <value>` and `--model <value>` as runtime controls and do not include them in the task text you pass through.
+- Treat `--race <m1,m2,...>` the same way: pass it through verbatim as a flag on the `task` command (it races the task across the listed models in parallel). Never combine it with `--model` or `--resume-last`.
 - Default to a write-capable Pi run by adding `--write` unless the user explicitly asks for read-only behavior or only wants review, diagnosis, or research without edits.
 - Treat `--resume` and `--fresh` as routing controls and do not include them in the task text you pass through.
 - `--resume` means add `--resume-last`.

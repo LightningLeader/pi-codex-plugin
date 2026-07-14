@@ -139,6 +139,20 @@ export PI_PLUGIN_FALLBACK_MODELS=deepseek-v4-flash,MiniMax-M3
 
 评审和 rescue 任务都生效。当结果来自降级模型时，输出末尾会附 `Model fallback:` 说明（JSON payload 里带 `modelAttempts`）。`/pi:setup` 会显示当前配置的降级链。
 
+## 🏁 模型竞速
+
+硬骨头任务可以让多个模型**并行**跑同一个任务，然后选出赢家：
+
+```text
+> /pi:rescue --race deepseek-v4-pro,claude-sonnet-4-6 fix the flaky retry logic in src/queue.mjs
+> /pi:rescue --race deepseek-v4-flash,gemini-2.5-pro why does the Windows CI build fail?
+```
+
+- **写竞速**（`--write`，`/pi:rescue` 默认带）：每个 racer 在独立的 git worktree（从 `HEAD` 创建）里干活——racer 之间以及和你的工作树完全隔离。每个 racer 的成果捕获为 patch；审阅后用 `git apply <patch>` 应用其中一个。
+- **只读竞速**（排查类任务）：racer 分析同一份代码，输出并排展示各自答案——多模型结论一致是强信号。
+- 某个 racer 失败或没产生改动会被如实标注；只要有一个 racer 完成，竞速就算成功。
+- 不能与 `--model` 或 `--resume` 同用（每个 racer 都是全新 session）。racer 从 `HEAD` 出发，任务涉及未提交改动时先 commit 或 stash。
+
 ## 选模型
 
 模型解析三层优先级：
