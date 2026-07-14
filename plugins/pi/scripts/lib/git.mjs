@@ -254,14 +254,18 @@ function formatUntrackedFile(cwd, relativePath) {
 
 function collectWorkingTreeContext(cwd, state, options = {}) {
   const includeDiff = options.includeDiff !== false;
-  const status = gitChecked(cwd, ["status", "--short", "--untracked-files=all"]).stdout.trim();
-  const changedFiles = listUniqueFiles(state.staged, state.unstaged, state.untracked);
+  // options.files restricts the diff to a shard's file subset (sharded review).
+  const files = options.files ?? null;
+  const pathspec = files && files.length ? ["--", ...files] : [];
+  const status = gitChecked(cwd, ["status", "--short", "--untracked-files=all", ...pathspec]).stdout.trim();
+  const changedFiles = files ?? listUniqueFiles(state.staged, state.unstaged, state.untracked);
+  const untracked = files ? state.untracked.filter((file) => files.includes(file)) : state.untracked;
 
   let parts;
   if (includeDiff) {
-    const stagedDiff = gitChecked(cwd, ["diff", "--cached", "--binary", "--no-ext-diff", "--submodule=diff"]).stdout;
-    const unstagedDiff = gitChecked(cwd, ["diff", "--binary", "--no-ext-diff", "--submodule=diff"]).stdout;
-    const untrackedBody = state.untracked.map((file) => formatUntrackedFile(cwd, file)).join("\n\n");
+    const stagedDiff = gitChecked(cwd, ["diff", "--cached", "--binary", "--no-ext-diff", "--submodule=diff", ...pathspec]).stdout;
+    const unstagedDiff = gitChecked(cwd, ["diff", "--binary", "--no-ext-diff", "--submodule=diff", ...pathspec]).stdout;
+    const untrackedBody = untracked.map((file) => formatUntrackedFile(cwd, file)).join("\n\n");
     parts = [
       formatSection("Git Status", status),
       formatSection("Staged Diff", stagedDiff),
@@ -269,9 +273,9 @@ function collectWorkingTreeContext(cwd, state, options = {}) {
       formatSection("Untracked Files", untrackedBody)
     ];
   } else {
-    const stagedStat = gitChecked(cwd, ["diff", "--shortstat", "--cached"]).stdout.trim();
-    const unstagedStat = gitChecked(cwd, ["diff", "--shortstat"]).stdout.trim();
-    const untrackedBody = state.untracked.map((file) => formatUntrackedFile(cwd, file)).join("\n\n");
+    const stagedStat = gitChecked(cwd, ["diff", "--shortstat", "--cached", ...pathspec]).stdout.trim();
+    const unstagedStat = gitChecked(cwd, ["diff", "--shortstat", ...pathspec]).stdout.trim();
+    const untrackedBody = untracked.map((file) => formatUntrackedFile(cwd, file)).join("\n\n");
     parts = [
       formatSection("Git Status", status),
       formatSection("Staged Diff Stat", stagedStat),
@@ -293,9 +297,13 @@ function collectBranchContext(cwd, baseRef, options = {}) {
   const includeDiff = options.includeDiff !== false;
   const comparison = options.comparison ?? buildBranchComparison(cwd, baseRef);
   const currentBranch = getCurrentBranch(cwd);
-  const changedFiles = gitChecked(cwd, ["diff", "--name-only", comparison.commitRange]).stdout.trim().split("\n").filter(Boolean);
+  // options.files restricts the diff to a shard's file subset (sharded review).
+  const files = options.files ?? null;
+  const pathspec = files && files.length ? ["--", ...files] : [];
+  const changedFiles =
+    files ?? gitChecked(cwd, ["diff", "--name-only", comparison.commitRange]).stdout.trim().split("\n").filter(Boolean);
   const logOutput = gitChecked(cwd, ["log", "--oneline", "--decorate", comparison.commitRange]).stdout.trim();
-  const diffStat = gitChecked(cwd, ["diff", "--stat", comparison.commitRange]).stdout.trim();
+  const diffStat = gitChecked(cwd, ["diff", "--stat", comparison.commitRange, ...pathspec]).stdout.trim();
 
   return {
     mode: "branch",
@@ -306,7 +314,7 @@ function collectBranchContext(cwd, baseRef, options = {}) {
           formatSection("Diff Stat", diffStat),
           formatSection(
             "Branch Diff",
-            gitChecked(cwd, ["diff", "--binary", "--no-ext-diff", "--submodule=diff", comparison.commitRange]).stdout
+            gitChecked(cwd, ["diff", "--binary", "--no-ext-diff", "--submodule=diff", comparison.commitRange, ...pathspec]).stdout
           )
         ].join("\n")
       : [
@@ -332,6 +340,10 @@ export function collectReviewContext(cwd, target, options = {}) {
   const currentBranch = getCurrentBranch(repoRoot);
   const maxInlineFiles = normalizeMaxInlineFiles(options.maxInlineFiles);
   const maxInlineDiffBytes = normalizeMaxInlineDiffBytes(options.maxInlineDiffBytes);
+  // options.files restricts the diff to a shard's file subset (sharded review):
+  // size checks below measure only that subset, not the whole diff.
+  const files = options.files ?? null;
+  const pathspec = files && files.length ? ["--", ...files] : [];
   let details;
   let includeDiff;
   let diffBytes;
@@ -341,26 +353,26 @@ export function collectReviewContext(cwd, target, options = {}) {
     diffBytes = measureCombinedGitOutputBytes(
       repoRoot,
       [
-        ["diff", "--cached", "--binary", "--no-ext-diff", "--submodule=diff"],
-        ["diff", "--binary", "--no-ext-diff", "--submodule=diff"]
+        ["diff", "--cached", "--binary", "--no-ext-diff", "--submodule=diff", ...pathspec],
+        ["diff", "--binary", "--no-ext-diff", "--submodule=diff", ...pathspec]
       ],
       maxInlineDiffBytes
     );
-    includeDiff =
-      options.includeDiff ??
-      (listUniqueFiles(state.staged, state.unstaged, state.untracked).length <= maxInlineFiles &&
-        diffBytes <= maxInlineDiffBytes);
-    details = collectWorkingTreeContext(repoRoot, state, { includeDiff });
+    const relevantFileCount = files ? files.length : listUniqueFiles(state.staged, state.unstaged, state.untracked).length;
+    includeDiff = options.includeDiff ?? (relevantFileCount <= maxInlineFiles && diffBytes <= maxInlineDiffBytes);
+    details = collectWorkingTreeContext(repoRoot, state, { includeDiff, files });
   } else {
     const comparison = buildBranchComparison(repoRoot, target.baseRef);
-    const fileCount = gitChecked(repoRoot, ["diff", "--name-only", comparison.commitRange]).stdout.trim().split("\n").filter(Boolean).length;
+    const fileCount = files
+      ? files.length
+      : gitChecked(repoRoot, ["diff", "--name-only", comparison.commitRange]).stdout.trim().split("\n").filter(Boolean).length;
     diffBytes = measureGitOutputBytes(
       repoRoot,
-      ["diff", "--binary", "--no-ext-diff", "--submodule=diff", comparison.commitRange],
+      ["diff", "--binary", "--no-ext-diff", "--submodule=diff", comparison.commitRange, ...pathspec],
       maxInlineDiffBytes
     );
     includeDiff = options.includeDiff ?? (fileCount <= maxInlineFiles && diffBytes <= maxInlineDiffBytes);
-    details = collectBranchContext(repoRoot, target.baseRef, { includeDiff, comparison });
+    details = collectBranchContext(repoRoot, target.baseRef, { includeDiff, comparison, files });
   }
 
   return {

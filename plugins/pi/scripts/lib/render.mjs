@@ -21,6 +21,15 @@ function formatLineRange(finding) {
   return `:${finding.line_start}-${finding.line_end}`;
 }
 
+function pushFinding(lines, finding) {
+  const lineSuffix = formatLineRange(finding);
+  lines.push(`- [${finding.severity}] ${finding.title} (${finding.file}${lineSuffix})`);
+  lines.push(`  ${finding.body}`);
+  if (finding.recommendation) {
+    lines.push(`  Recommendation: ${finding.recommendation}`);
+  }
+}
+
 export function validateReviewResultShape(data) {
   if (!data || typeof data !== "object" || Array.isArray(data)) {
     return "Expected a top-level JSON object.";
@@ -294,12 +303,7 @@ export function renderReviewResult(parsedResult, meta) {
   } else {
     lines.push("Findings:");
     for (const finding of findings) {
-      const lineSuffix = formatLineRange(finding);
-      lines.push(`- [${finding.severity}] ${finding.title} (${finding.file}${lineSuffix})`);
-      lines.push(`  ${finding.body}`);
-      if (finding.recommendation) {
-        lines.push(`  Recommendation: ${finding.recommendation}`);
-      }
+      pushFinding(lines, finding);
     }
   }
 
@@ -384,6 +388,56 @@ export function renderPanelReviewResult(panel, meta) {
     }
     lines.push("Next steps:");
     for (const step of panel.next_steps) {
+      lines.push(`- ${step}`);
+    }
+  }
+
+  return `${lines.join("\n").trimEnd()}\n`;
+}
+
+// sharded: merged review data plus per-shard outcomes:
+// { verdict, summary, findings, next_steps, shards: [{ index, files, ok, findingCount, failure }] }
+export function renderShardedReviewResult(sharded, meta) {
+  const okCount = sharded.shards.filter((shard) => shard.ok).length;
+  const lines = [
+    `# Pi Sharded ${meta.reviewLabel}`,
+    "",
+    `Target: ${meta.targetLabel}`,
+    `Sharded across ${sharded.shards.length} review jobs: ${okCount}/${sharded.shards.length} succeeded`
+  ];
+
+  for (const shard of sharded.shards) {
+    const fileList = shard.files.join(", ");
+    if (shard.ok) {
+      lines.push(`- shard ${shard.index + 1} (${fileList}): ok (${shard.findingCount} finding${shard.findingCount === 1 ? "" : "s"})`);
+    } else {
+      lines.push(`- shard ${shard.index + 1} (${fileList}): failed — ${shard.failure}`);
+    }
+  }
+  lines.push("");
+
+  if (okCount === 0) {
+    lines.push("All review shards failed; no review result was produced.");
+    return `${lines.join("\n").trimEnd()}\n`;
+  }
+
+  lines.push(`Verdict: ${sharded.verdict}`, "");
+  if (sharded.summary) {
+    lines.push(sharded.summary, "");
+  }
+
+  if (sharded.findings.length === 0) {
+    lines.push("No material findings.");
+  } else {
+    lines.push("Findings:");
+    for (const finding of sharded.findings) {
+      pushFinding(lines, finding);
+    }
+  }
+
+  if (sharded.next_steps.length > 0) {
+    lines.push("", "Next steps:");
+    for (const step of sharded.next_steps) {
       lines.push(`- ${step}`);
     }
   }
