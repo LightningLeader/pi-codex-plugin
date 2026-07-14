@@ -1,6 +1,6 @@
 ---
 description: Delegate investigation, an explicit fix request, or follow-up rescue work to the Pi rescue subagent
-argument-hint: "[--background|--wait] [--resume|--fresh] [--model <model>] [--effort <off|minimal|low|medium|high|xhigh>] [what Pi should investigate, solve, or continue]"
+argument-hint: "[--background|--wait] [--resume|--fresh] [--model <model>|--race <m1,m2,...>] [--effort <off|minimal|low|medium|high|xhigh>] [what Pi should investigate, solve, or continue]"
 allowed-tools: Bash(node:*), AskUserQuestion, Agent
 ---
 
@@ -44,6 +44,7 @@ Operating rules:
 - Do not ask the subagent to inspect files, monitor progress, poll `/pi:status`, fetch `/pi:result`, call `/pi:cancel`, summarize output, or do follow-up work of its own.
 - Leave `--effort` unset unless the user explicitly asks for a specific reasoning effort.
 - Leave the model unset unless the user explicitly asks for one.
+- `--race <m1,m2,...>` (2+ models) is a model race: the same task runs with every listed model in parallel and the output presents each racer's result so a winner can be picked. With `--write`, each racer runs in an isolated git worktree created from HEAD and its result is captured as a patch (`git apply <patch>` applies the winner). Preserve `--race` in the forwarded `task` call. A race cannot be combined with `--resume`.
 - Leave `--resume` and `--fresh` in the forwarded request. The subagent handles that routing when it builds the `task` command.
 - If the helper reports that Pi is missing or unconfigured, stop and tell the user to run `/pi:setup`.
 - If the user did not supply a request, ask what Pi should investigate or fix.
