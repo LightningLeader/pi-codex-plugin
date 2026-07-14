@@ -118,6 +118,16 @@ export function getCurrentBranch(cwd) {
   return gitChecked(cwd, ["branch", "--show-current"]).stdout.trim() || "HEAD";
 }
 
+export function getHeadSha(cwd) {
+  return gitChecked(cwd, ["rev-parse", "HEAD"]).stdout.trim();
+}
+
+// Exit 1 ("not an ancestor") is a normal outcome here, not a failure — use the
+// non-throwing `git` helper and read the exit status instead of gitChecked.
+export function isAncestor(cwd, sha, ref = "HEAD") {
+  return git(cwd, ["merge-base", "--is-ancestor", sha, ref]).status === 0;
+}
+
 export function getWorkingTreeState(cwd) {
   const staged = gitChecked(cwd, ["diff", "--cached", "--name-only"]).stdout.trim().split("\n").filter(Boolean);
   const unstaged = gitChecked(cwd, ["diff", "--name-only"]).stdout.trim().split("\n").filter(Boolean);

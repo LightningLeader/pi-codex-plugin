@@ -98,6 +98,8 @@ Install the plugin in Claude Code:
 
 `--out-file <path>` (on `/pi:review`, `/pi:adversarial-review`, `/pi:rescue`, `/pi:result`) writes Pi's full output to a file and returns only a short summary — verdict, finding counts, one line per finding. The heavy reasoning already runs on the cheaper model; this also keeps the large result out of the calling agent's context, so a big review doesn't burn Claude Code tokens on the relay. Open the file for the full detail.
 
+`--incremental` (on `/pi:review`, `/pi:adversarial-review`) reviews only the commits since the last review on the current branch, using a per-branch cache of the last-reviewed commit — saving Pi input tokens and time by skipping the code that was already reviewed. Falls back to a full review when there is no valid cache.
+
 ## 🧩 Use from Codex
 
 The core of this plugin is a harness-agnostic CLI (`pi-companion.mjs`) — any coding agent that can run shell commands can drive it. For OpenAI's Codex CLI, install the bundled [custom prompts](codex-prompts/):
