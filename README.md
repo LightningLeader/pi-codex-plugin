@@ -193,10 +193,10 @@ The whole point of driving Pi is that you are not locked to Claude or GPT. These
 |---|---|
 | DeepSeek | `deepseek-v4-flash` (everyday) · `deepseek-v4-pro` (adversarial) |
 | xAI | `grok-4.5` |
-| Zhipu (GLM) | `glm5.1` · `glm5.2` (heavier) |
-| Moonshot (Kimi) | `kimi 2.6` |
-| MiniMax | `minimax-m3` |
-| ByteDance (Seed) | `seed-2.1-pro-preview` |
+| Zhipu (GLM) | `glm-5.1` · `glm-5.2` (heavier) |
+| Moonshot (Kimi) | `kimi-k2.6` |
+| MiniMax | `MiniMax-M3` |
+| ByteDance (Seed) | `doubao-seed-2.1-pro` |
 | Xiaomi (MiMo) | `mimo-v2.5` (everyday) · `mimo-v2.5-pro` (heavier) |
 | Meta | `muse-spark-1.1` |
 

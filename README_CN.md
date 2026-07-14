@@ -193,10 +193,10 @@ export PI_PLUGIN_ADVERSARIAL_REVIEW_MODEL=claude-sonnet-4-6
 |---|---|
 | DeepSeek | `deepseek-v4-flash`（日常）· `deepseek-v4-pro`（对抗式） |
 | xAI | `grok-4.5` |
-| 智谱（GLM） | `glm5.1` · `glm5.2`（更重） |
-| 月之暗面（Kimi） | `kimi 2.6` |
-| MiniMax | `minimax-m3` |
-| 字节（Seed） | `seed-2.1-pro-preview` |
+| 智谱（GLM） | `glm-5.1` · `glm-5.2`（更重） |
+| 月之暗面（Kimi） | `kimi-k2.6` |
+| MiniMax | `MiniMax-M3` |
+| 字节（Seed） | `doubao-seed-2.1-pro` |
 | 小米（MiMo） | `mimo-v2.5`（日常）· `mimo-v2.5-pro`（更重） |
 | Meta | `muse-spark-1.1` |
 
