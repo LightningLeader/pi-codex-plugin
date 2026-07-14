@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.7.0
 
 - Incremental review: `/pi:review --incremental` (and `/pi:adversarial-review`)
   reviews only the commits since the last review on the current branch,
