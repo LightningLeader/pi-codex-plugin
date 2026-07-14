@@ -1,6 +1,6 @@
 {
   "name": "pi",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Use the Pi coding agent from Claude Code to review code or delegate tasks.",
   "author": {
     "name": "Agents365-ai"
