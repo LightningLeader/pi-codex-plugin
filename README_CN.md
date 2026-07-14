@@ -83,6 +83,7 @@ pi --list-models | head
 > /pi:review
 > /pi:review --base main
 > /pi:review --model claude-sonnet-4
+> /pi:review --out-file review.md
 > /pi:adversarial-review focus on the new auth middleware
 > /pi:rescue 调研一下 Windows CI 为什么编译失败
 > /pi:rescue --background --model gpt-4o 重构 src/payments/
@@ -94,6 +95,8 @@ pi --list-models | head
 ```
 
 `--effort <off|minimal|low|medium|high|xhigh>` 会经 `set_thinking_level` 传给 Pi。不支持 thinking 的模型会静默忽略（插件会往 stderr 写一行提示）。
+
+`--out-file <path>`（用于 `/pi:review`、`/pi:adversarial-review`、`/pi:rescue`）把 Pi 的完整输出写到文件，只返回一段简短摘要——verdict、findings 计数、每条一行。繁重推理本就跑在更便宜的模型上；这一步还把大段结果挡在调用方的上下文之外，大型评审就不会在"转述"上烧 Claude Code 的 token。要看全文就打开那个文件。
 
 ## 🧩 在 Codex 里使用
 

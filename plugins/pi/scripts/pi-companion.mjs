@@ -62,6 +62,7 @@ import {
 import { resolveWorkspaceRoot } from "./lib/workspace.mjs";
 import {
   normalizeReviewResultData,
+  renderOutFileSummary,
   renderPanelReviewResult,
   renderRaceResult,
   renderReviewResult,
@@ -103,9 +104,9 @@ function printUsage() {
     [
       "Usage:",
       "  node scripts/pi-companion.mjs setup [--enable-review-gate|--disable-review-gate] [--json]",
-      "  node scripts/pi-companion.mjs review [--wait|--background] [--base <ref>] [--scope <auto|working-tree|branch>] [--model <model>|--models <m1,m2,...>] [--shards <N>]",
-      "  node scripts/pi-companion.mjs adversarial-review [--wait|--background] [--base <ref>] [--scope <auto|working-tree|branch>] [--model <model>|--models <m1,m2,...>] [--shards <N>] [focus text]",
-      "  node scripts/pi-companion.mjs task [--background] [--write] [--resume-last|--resume|--fresh] [--model <model>|--race <m1,m2,...>] [--effort <off|minimal|low|medium|high|xhigh>] [prompt]",
+      "  node scripts/pi-companion.mjs review [--wait|--background] [--base <ref>] [--scope <auto|working-tree|branch>] [--model <model>|--models <m1,m2,...>] [--shards <N>] [--out-file <path>]",
+      "  node scripts/pi-companion.mjs adversarial-review [--wait|--background] [--base <ref>] [--scope <auto|working-tree|branch>] [--model <model>|--models <m1,m2,...>] [--shards <N>] [--out-file <path>] [focus text]",
+      "  node scripts/pi-companion.mjs task [--background] [--write] [--resume-last|--resume|--fresh] [--model <model>|--race <m1,m2,...>] [--effort <off|minimal|low|medium|high|xhigh>] [--out-file <path>] [prompt]",
       "  node scripts/pi-companion.mjs status [job-id] [--all] [--json]",
       "  node scripts/pi-companion.mjs result [job-id] [--json]",
       "  node scripts/pi-companion.mjs cancel [job-id] [--json]"
@@ -1015,7 +1016,14 @@ async function runForegroundCommand(job, runner, options = {}) {
     stderr: !options.json
   });
   const execution = await runTrackedJob(job, () => runner(progress), { logFile });
-  outputResult(options.json ? execution.payload : execution.rendered, options.json);
+  if (options.outFile && !options.json) {
+    // Write the full output to a file and relay only a short summary, so a
+    // large review/task does not consume the caller's context.
+    fs.writeFileSync(options.outFile, execution.rendered);
+    process.stdout.write(renderOutFileSummary(execution, options.outFile));
+  } else {
+    outputResult(options.json ? execution.payload : execution.rendered, options.json);
+  }
   if (execution.exitStatus !== 0) {
     process.exitCode = execution.exitStatus;
   }
@@ -1065,7 +1073,7 @@ function enqueueBackgroundTask(cwd, job, request) {
 
 async function handleReviewCommand(argv, config) {
   const { options, positionals } = parseCommandInput(argv, {
-    valueOptions: ["base", "scope", "model", "models", "shards", "effort", "cwd"],
+    valueOptions: ["base", "scope", "model", "models", "shards", "effort", "cwd", "out-file"],
     booleanOptions: ["json", "background", "wait"],
     aliasMap: {
       m: "model"
@@ -1075,6 +1083,7 @@ async function handleReviewCommand(argv, config) {
   const cwd = resolveCommandCwd(options);
   const workspaceRoot = resolveCommandWorkspace(options);
   const focusText = positionals.join(" ").trim();
+  const outFile = options["out-file"] ? path.resolve(cwd, options["out-file"]) : null;
   const target = resolveReviewTarget(cwd, {
     base: options.base,
     scope: options.scope
@@ -1118,7 +1127,7 @@ async function handleReviewCommand(argv, config) {
           reviewName: config.reviewName,
           onProgress: progress
         }),
-      { json: options.json }
+      { json: options.json, outFile }
     );
     return;
   }
@@ -1146,7 +1155,7 @@ async function handleReviewCommand(argv, config) {
           reviewName: config.reviewName,
           onProgress: progress
         }),
-      { json: options.json }
+      { json: options.json, outFile }
     );
     return;
   }
@@ -1172,7 +1181,7 @@ async function handleReviewCommand(argv, config) {
         reviewName: config.reviewName,
         onProgress: progress
       }),
-    { json: options.json }
+    { json: options.json, outFile }
   );
 }
 
@@ -1185,7 +1194,7 @@ async function handleReview(argv) {
 
 async function handleTask(argv) {
   const { options, positionals } = parseCommandInput(argv, {
-    valueOptions: ["model", "effort", "cwd", "prompt-file", "race"],
+    valueOptions: ["model", "effort", "cwd", "prompt-file", "race", "out-file"],
     booleanOptions: ["json", "write", "resume-last", "resume", "fresh", "background"],
     aliasMap: {
       m: "model"
@@ -1194,6 +1203,7 @@ async function handleTask(argv) {
 
   const cwd = resolveCommandCwd(options);
   const workspaceRoot = resolveCommandWorkspace(options);
+  const outFile = options["out-file"] ? path.resolve(cwd, options["out-file"]) : null;
   const raceList = parseModelList(options.race);
   if (raceList.length > 0 && options.model) {
     throw new Error("Choose either --model <one> or --race <m1,m2,...>, not both.");
@@ -1254,7 +1264,7 @@ async function handleTask(argv) {
         raceModels,
         onProgress: progress
       }),
-    { json: options.json }
+    { json: options.json, outFile }
   );
 }
 
