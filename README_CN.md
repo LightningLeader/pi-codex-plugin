@@ -185,6 +185,25 @@ export PI_PLUGIN_REVIEW_MODEL=claude-haiku-4-5
 export PI_PLUGIN_ADVERSARIAL_REVIEW_MODEL=claude-sonnet-4-6
 ```
 
+### 性价比档 —— 比 Claude/GPT 便宜、依然能打
+
+驱动 Pi 的意义就在于你不被 Claude 或 GPT 锁死。下面这些模型的成本只是 Claude/GPT 顶配的零头，性能虽然没那么强，但用于日常 review 和 rescue 绰绰有余。在 `~/.pi/agent/models.json` 里配置它们（大多是 OpenAI 兼容端点），并用你的 provider 实际暴露的 id —— 用 `pi --list-models` 核对。
+
+| Provider | 建议模型 |
+|---|---|
+| DeepSeek | `deepseek-v4-flash`（日常）· `deepseek-v4-pro`（对抗式） |
+| xAI | `grok-4.5` |
+| 智谱（GLM） | `glm-5.1` · `glm-5.2`（更重） |
+| 月之暗面（Kimi） | `kimi-k2.6` |
+| MiniMax | `MiniMax-M3` |
+| 字节（Seed） | `doubao-seed-2.1-pro` |
+| 小米（MiMo） | `mimo-v2.5`（日常）· `mimo-v2.5-pro`（更重） |
+| Meta | `muse-spark-1.1` |
+
+……以及任何你配置的 OpenAI 兼容端点。可用性和确切 id 取决于你的 `~/.pi/agent/models.json`。
+
+> 不是每个模型都能为结构化 review 命令吐出干净 JSON。如果某个模型在 `/pi:review` 上解析报错，它用于 `/pi:rescue`（自由格式）仍然没问题 —— 或者把它加进 `PI_PLUGIN_FALLBACK_MODELS` 链，坏成员会自动重试下一个。（已观察到：部分 MiniMax 和本地模型会回显 prompt 而非返回 JSON。）
+
 ## 配置 pi
 
 最简就是一个环境变量装 API key。要细配就写 `~/.pi/agent/models.json`：

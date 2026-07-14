@@ -185,6 +185,25 @@ export PI_PLUGIN_REVIEW_MODEL=claude-haiku-4-5
 export PI_PLUGIN_ADVERSARIAL_REVIEW_MODEL=claude-sonnet-4-6
 ```
 
+### Value tier — cheaper than Claude/GPT, still competitive
+
+The whole point of driving Pi is that you are not locked to Claude or GPT. These models cost a fraction of the frontier Claude/GPT tiers and, while not quite as strong, are more than good enough for everyday review and rescue work. Configure them in `~/.pi/agent/models.json` (most are OpenAI-compatible endpoints) and use the exact id your provider exposes — verify with `pi --list-models`.
+
+| Provider | Suggested model(s) |
+|---|---|
+| DeepSeek | `deepseek-v4-flash` (everyday) · `deepseek-v4-pro` (adversarial) |
+| xAI | `grok-4.5` |
+| Zhipu (GLM) | `glm-5.1` · `glm-5.2` (heavier) |
+| Moonshot (Kimi) | `kimi-k2.6` |
+| MiniMax | `MiniMax-M3` |
+| ByteDance (Seed) | `doubao-seed-2.1-pro` |
+| Xiaomi (MiMo) | `mimo-v2.5` (everyday) · `mimo-v2.5-pro` (heavier) |
+| Meta | `muse-spark-1.1` |
+
+…and any other OpenAI-compatible endpoint you configure. Availability and the exact id depend on your `~/.pi/agent/models.json`.
+
+> Not every model emits clean JSON for the structured review commands. If `/pi:review` fails with a parse error on a given model, it is still fine for `/pi:rescue` (free-form) — or add it to a `PI_PLUGIN_FALLBACK_MODELS` chain so a flaky member is retried with the next one. (Observed: some MiniMax and local models echo the prompt back instead of returning JSON.)
+
 ## Configure pi
 
 The minimum is a single env var with your API key. For richer setups, write `~/.pi/agent/models.json`:
