@@ -238,9 +238,15 @@ function formatUntrackedFile(cwd, relativePath) {
   const absolutePath = path.join(cwd, relativePath);
   let stat;
   try {
-    stat = fs.statSync(absolutePath);
+    // lstat (not stat): an untracked file can be a symlink pointing outside
+    // the repo (e.g. to ~/.ssh/id_rsa). Following it would embed the
+    // target's content in a review prompt sent to an external LLM provider.
+    stat = fs.lstatSync(absolutePath);
   } catch {
     return `### ${relativePath}\n(skipped: broken symlink or unreadable file)`;
+  }
+  if (stat.isSymbolicLink()) {
+    return `### ${relativePath}\n(skipped: symlink)`;
   }
   if (stat.isDirectory()) {
     return `### ${relativePath}\n(skipped: directory)`;

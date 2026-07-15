@@ -167,9 +167,10 @@ describe("formatUntrackedFile", () => {
     // Default mocks: a small readable text file
     const fileStat = {
       isDirectory: () => false,
+      isSymbolicLink: () => false,
       size: 100,
     };
-    mock.method(fs, "statSync", () => fileStat);
+    mock.method(fs, "lstatSync", () => fileStat);
     mock.method(fs, "readFileSync", () => Buffer.from("file content"));
   });
 
@@ -184,10 +185,25 @@ describe("formatUntrackedFile", () => {
     assert.match(result, /file content/);
   });
 
+  it("skips symlinks without following them", () => {
+    mock.restoreAll();
+    mock.method(fs, "lstatSync", () => ({
+      isDirectory: () => false,
+      isSymbolicLink: () => true,
+      size: 10,
+    }));
+    const readFileSync = mock.method(fs, "readFileSync", () => Buffer.from("secret"));
+    const result = formatUntrackedFile(CWD, "leak-link");
+    assert.match(result, /### leak-link/);
+    assert.match(result, /skipped: symlink/);
+    assert.equal(readFileSync.mock.callCount(), 0);
+  });
+
   it("skips directories", () => {
     mock.restoreAll();
-    mock.method(fs, "statSync", () => ({
+    mock.method(fs, "lstatSync", () => ({
       isDirectory: () => true,
+      isSymbolicLink: () => false,
       size: 0,
     }));
     const result = formatUntrackedFile(CWD, "dist");
@@ -197,8 +213,9 @@ describe("formatUntrackedFile", () => {
 
   it("skips files exceeding size limit", () => {
     mock.restoreAll();
-    mock.method(fs, "statSync", () => ({
+    mock.method(fs, "lstatSync", () => ({
       isDirectory: () => false,
+      isSymbolicLink: () => false,
       size: 25 * 1024, // exceeds 24KB limit
     }));
     const result = formatUntrackedFile(CWD, "large.bin");
@@ -209,7 +226,7 @@ describe("formatUntrackedFile", () => {
 
   it("skips broken symlinks or unreadable files on stat", () => {
     mock.restoreAll();
-    mock.method(fs, "statSync", () => {
+    mock.method(fs, "lstatSync", () => {
       throw new Error("ENOENT");
     });
     const result = formatUntrackedFile(CWD, "broken-link");
@@ -219,8 +236,9 @@ describe("formatUntrackedFile", () => {
 
   it("skips broken symlinks or unreadable files on read", () => {
     mock.restoreAll();
-    mock.method(fs, "statSync", () => ({
+    mock.method(fs, "lstatSync", () => ({
       isDirectory: () => false,
+      isSymbolicLink: () => false,
       size: 10,
     }));
     mock.method(fs, "readFileSync", () => {

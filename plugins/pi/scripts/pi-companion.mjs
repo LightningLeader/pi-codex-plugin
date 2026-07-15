@@ -108,8 +108,8 @@ function printUsage() {
     [
       "Usage:",
       "  node scripts/pi-companion.mjs setup [--enable-review-gate|--disable-review-gate] [--json]",
-      "  node scripts/pi-companion.mjs review [--wait|--background] [--base <ref>] [--scope <auto|working-tree|branch>] [--incremental] [--model <model>|--models <m1,m2,...>] [--shards <N>] [--out-file <path>]",
-      "  node scripts/pi-companion.mjs adversarial-review [--wait|--background] [--base <ref>] [--scope <auto|working-tree|branch>] [--incremental] [--model <model>|--models <m1,m2,...>] [--shards <N>] [--out-file <path>] [focus text]",
+      "  node scripts/pi-companion.mjs review [--base <ref>] [--scope <auto|working-tree|branch>] [--incremental] [--model <model>|--models <m1,m2,...>] [--shards <N>] [--out-file <path>]",
+      "  node scripts/pi-companion.mjs adversarial-review [--base <ref>] [--scope <auto|working-tree|branch>] [--incremental] [--model <model>|--models <m1,m2,...>] [--shards <N>] [--out-file <path>] [focus text]",
       "  node scripts/pi-companion.mjs task [--background] [--write] [--resume-last|--resume|--fresh] [--model <model>|--race <m1,m2,...>] [--effort <off|minimal|low|medium|high|xhigh>] [--out-file <path>] [prompt]",
       "  node scripts/pi-companion.mjs status [job-id] [--all] [--json]",
       "  node scripts/pi-companion.mjs result [job-id] [--json] [--out-file <path>]",
@@ -1091,7 +1091,7 @@ function maybeUpdateReviewCache(workspaceRoot, cwd, execution) {
 async function handleReviewCommand(argv, config) {
   const { options, positionals } = parseCommandInput(argv, {
     valueOptions: ["base", "scope", "model", "models", "shards", "effort", "cwd", "out-file"],
-    booleanOptions: ["json", "background", "wait", "incremental"],
+    booleanOptions: ["json", "incremental"],
     aliasMap: {
       m: "model"
     }
