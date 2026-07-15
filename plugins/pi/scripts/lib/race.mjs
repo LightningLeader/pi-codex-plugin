@@ -13,14 +13,21 @@ export function sanitizeModelForPath(model) {
 
 // Models like "provider/model" and "provider-model" can sanitize to the same
 // slug; uniquify with an index suffix so worktree paths and patch files never
-// collide.
+// collide. Checked against already-produced slugs (not just base counts), so
+// a later racer's own natural slug can't collide with an earlier uniquified
+// one (e.g. "x/y", "x-y", "x:y" all sanitize toward "x-y").
 export function buildRacerLabels(models) {
-  const seen = new Map();
+  const used = new Set();
   return models.map((model) => {
     const base = sanitizeModelForPath(model);
-    const count = seen.get(base) ?? 0;
-    seen.set(base, count + 1);
-    return { model, slug: count === 0 ? base : `${base}-${count + 1}` };
+    let slug = base;
+    let suffix = 1;
+    while (used.has(slug)) {
+      suffix += 1;
+      slug = `${base}-${suffix}`;
+    }
+    used.add(slug);
+    return { model, slug };
   });
 }
 

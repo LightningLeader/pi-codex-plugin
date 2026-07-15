@@ -61,10 +61,12 @@ function cleanupSessionJobs(cwd, sessionId) {
     }
   }
 
-  saveState(workspaceRoot, {
-    ...state,
-    jobs: state.jobs.filter((job) => job.sessionId !== sessionId)
-  });
+  const previousJobs = state.jobs;
+  saveState(
+    workspaceRoot,
+    { ...state, jobs: previousJobs.filter((job) => job.sessionId !== sessionId) },
+    previousJobs
+  );
 }
 
 function handleSessionStart(input) {
