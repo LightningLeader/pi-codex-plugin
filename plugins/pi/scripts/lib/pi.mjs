@@ -13,7 +13,7 @@ const DEFAULT_CONTINUE_PROMPT =
 
 const REVIEW_TOOLS = ["read", "grep", "find", "ls"];
 
-const VALID_THINKING_LEVELS = new Set(["off", "minimal", "low", "medium", "high", "xhigh"]);
+const VALID_THINKING_LEVELS = new Set(["off", "minimal", "low", "medium", "high", "xhigh", "max"]);
 
 function cleanPiStderr(stderr) {
   return stderr
@@ -553,18 +553,37 @@ export function getPiModelsStatus(env = process.env) {
     // ignore parse errors; treated as no providers configured
   }
 
-  if (envHints.length === 0 && providerCount === 0) {
+  // Credentials stored by pi's /login live in auth.json (API keys or OAuth
+  // tokens) and rank above env vars in pi's resolution order.
+  const authPath = path.join(piDir, "auth.json");
+  let authProviderCount = 0;
+  try {
+    const parsed = JSON.parse(fs.readFileSync(authPath, "utf8"));
+    if (parsed && typeof parsed === "object") {
+      authProviderCount = Object.keys(parsed).length;
+    }
+  } catch {
+    // missing or unparseable auth.json; treated as no stored credentials
+  }
+
+  if (envHints.length === 0 && providerCount === 0 && authProviderCount === 0) {
     return {
       available: false,
-      detail: `No provider API key in env and no providers configured at ${modelsPath}`,
+      detail: `No provider API key in env, no credentials in ${authPath}, and no providers configured at ${modelsPath}`,
       modelsPath,
       modelsFileExists,
       providerCount,
+      authProviderCount,
       envHints
     };
   }
 
   const detailParts = [];
+  if (authProviderCount > 0) {
+    detailParts.push(
+      `${authProviderCount} credential${authProviderCount === 1 ? "" : "s"} in ${authPath}`
+    );
+  }
   if (providerCount > 0) {
     detailParts.push(`${providerCount} provider${providerCount === 1 ? "" : "s"} in ${modelsPath}`);
   }
@@ -578,6 +597,7 @@ export function getPiModelsStatus(env = process.env) {
     modelsPath,
     modelsFileExists,
     providerCount,
+    authProviderCount,
     envHints
   };
 }

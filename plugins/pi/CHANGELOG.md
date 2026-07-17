@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.7.1
+
+- Pi 0.80.x compatibility:
+  - `--effort max` is now accepted and forwarded via `set_thinking_level`
+    (new top thinking level introduced in Pi 0.80.6; exposed by models such
+    as GPT-5.6 and adaptive Claude).
+  - `/pi:setup` readiness now recognizes credentials stored by pi `/login`
+    in `~/.pi/agent/auth.json` (API keys and OAuth tokens). Previously a
+    user authenticated only via `/login` was reported as "no provider
+    configured" even though pi worked; the check looked at env vars and
+    `models.json` alone. New `authProviderCount` field in the setup JSON.
+- README value tier: suggest `kimi-k3` (Kimi K3 support landed in Pi 0.80.9).
+- Includes the previously unreleased fixes from PR #24: untracked-symlink
+  content leak in review prompts, race-worktree slug collision, and a
+  job-state save race (`lib/git.mjs`, `lib/race.mjs`, `lib/state.mjs`).
+
 ## 0.7.0
 
 - Incremental review: `/pi:review --incremental` (and `/pi:adversarial-review`)

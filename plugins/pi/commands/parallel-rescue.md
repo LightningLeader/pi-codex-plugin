@@ -1,6 +1,6 @@
 ---
 description: Delegate multiple independent tasks to Pi for parallel execution via pi-subagents
-argument-hint: '"task1" "task2" ... [--model <model>] [--effort <off|minimal|low|medium|high|xhigh>]'
+argument-hint: '"task1" "task2" ... [--model <model>] [--effort <off|minimal|low|medium|high|xhigh|max>]'
 allowed-tools: Bash(node:*), AskUserQuestion
 ---
 

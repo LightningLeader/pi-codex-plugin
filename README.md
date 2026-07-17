@@ -94,7 +94,7 @@ Install the plugin in Claude Code:
 > /pi:cancel task-mpgyiwb9-e3k641
 ```
 
-`--effort <off|minimal|low|medium|high|xhigh>` is passed through to Pi via `set_thinking_level`. Models that do not support thinking silently ignore it (the plugin logs a one-line note to stderr when this happens).
+`--effort <off|minimal|low|medium|high|xhigh|max>` is passed through to Pi via `set_thinking_level`. Models that do not support thinking silently ignore it (the plugin logs a one-line note to stderr when this happens).
 
 `--out-file <path>` (on `/pi:review`, `/pi:adversarial-review`, `/pi:rescue`, `/pi:result`) writes Pi's full output to a file and returns only a short summary — verdict, finding counts, one line per finding. The heavy reasoning already runs on the cheaper model; this also keeps the large result out of the calling agent's context, so a big review doesn't burn Claude Code tokens on the relay. Open the file for the full detail.
 
@@ -199,7 +199,7 @@ The whole point of driving Pi is that you are not locked to Claude or GPT. These
 | DeepSeek | `deepseek-v4-flash` (everyday) · `deepseek-v4-pro` (adversarial) |
 | xAI | `grok-4.5` |
 | Zhipu (GLM) | `glm-5.1` · `glm-5.2` (heavier) |
-| Moonshot (Kimi) | `kimi-k2.6` |
+| Moonshot (Kimi) | `kimi-k3` (or `kimi-k2.6`) |
 | MiniMax | `MiniMax-M3` |
 | ByteDance (Seed) | `doubao-seed-2.1-pro` |
 | Xiaomi (MiMo) | `mimo-v2.5` (everyday) · `mimo-v2.5-pro` (heavier) |
