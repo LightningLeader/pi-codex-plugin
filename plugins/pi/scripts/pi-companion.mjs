@@ -88,7 +88,7 @@ const ROOT_DIR = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
 const REVIEW_SCHEMA = path.join(ROOT_DIR, "schemas", "review-output.schema.json");
 const DEFAULT_STATUS_WAIT_TIMEOUT_MS = 240000;
 const DEFAULT_STATUS_POLL_INTERVAL_MS = 2000;
-const VALID_REASONING_EFFORTS = new Set(["off", "minimal", "low", "medium", "high", "xhigh"]);
+const VALID_REASONING_EFFORTS = new Set(["off", "minimal", "low", "medium", "high", "xhigh", "max"]);
 const EFFORT_ALIASES = new Map([["none", "off"]]);
 const STOP_REVIEW_TASK_MARKER = "Run a stop-gate review of the previous Claude turn.";
 
@@ -110,7 +110,7 @@ function printUsage() {
       "  node scripts/pi-companion.mjs setup [--enable-review-gate|--disable-review-gate] [--json]",
       "  node scripts/pi-companion.mjs review [--base <ref>] [--scope <auto|working-tree|branch>] [--incremental] [--model <model>|--models <m1,m2,...>] [--shards <N>] [--out-file <path>]",
       "  node scripts/pi-companion.mjs adversarial-review [--base <ref>] [--scope <auto|working-tree|branch>] [--incremental] [--model <model>|--models <m1,m2,...>] [--shards <N>] [--out-file <path>] [focus text]",
-      "  node scripts/pi-companion.mjs task [--background] [--write] [--resume-last|--resume|--fresh] [--model <model>|--race <m1,m2,...>] [--effort <off|minimal|low|medium|high|xhigh>] [--out-file <path>] [prompt]",
+      "  node scripts/pi-companion.mjs task [--background] [--write] [--resume-last|--resume|--fresh] [--model <model>|--race <m1,m2,...>] [--effort <off|minimal|low|medium|high|xhigh|max>] [--out-file <path>] [prompt]",
       "  node scripts/pi-companion.mjs status [job-id] [--all] [--json]",
       "  node scripts/pi-companion.mjs result [job-id] [--json] [--out-file <path>]",
       "  node scripts/pi-companion.mjs cancel [job-id] [--json]"
@@ -162,7 +162,7 @@ function normalizeReasoningEffort(effort) {
   const resolved = EFFORT_ALIASES.get(normalized) ?? normalized;
   if (!VALID_REASONING_EFFORTS.has(resolved)) {
     throw new Error(
-      `Unsupported reasoning effort "${effort}". Use one of: off, minimal, low, medium, high, xhigh (alias: none -> off).`
+      `Unsupported reasoning effort "${effort}". Use one of: off, minimal, low, medium, high, xhigh, max (alias: none -> off).`
     );
   }
   return resolved;
@@ -245,7 +245,7 @@ async function buildSetupReport(cwd, actionsTaken = []) {
   }
   if (piStatus.available && !modelsStatus.available) {
     nextSteps.push(
-      "Set a provider API key (e.g. `export DEEPSEEK_API_KEY=...`) or write `~/.pi/agent/models.json` per pi docs."
+      "Set a provider API key (e.g. `export DEEPSEEK_API_KEY=...`), run `/login` inside pi, or write `~/.pi/agent/models.json` per pi docs."
     );
   }
   if (piStatus.available && modelsStatus.available && !config.stopReviewGate) {

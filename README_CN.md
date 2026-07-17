@@ -94,7 +94,7 @@ pi --list-models | head
 > /pi:cancel task-mpgyiwb9-e3k641
 ```
 
-`--effort <off|minimal|low|medium|high|xhigh>` 会经 `set_thinking_level` 传给 Pi。不支持 thinking 的模型会静默忽略（插件会往 stderr 写一行提示）。
+`--effort <off|minimal|low|medium|high|xhigh|max>` 会经 `set_thinking_level` 传给 Pi。不支持 thinking 的模型会静默忽略（插件会往 stderr 写一行提示）。
 
 `--out-file <path>`（用于 `/pi:review`、`/pi:adversarial-review`、`/pi:rescue`、`/pi:result`）把 Pi 的完整输出写到文件，只返回一段简短摘要——verdict、findings 计数、每条一行。繁重推理本就跑在更便宜的模型上；这一步还把大段结果挡在调用方的上下文之外，大型评审就不会在"转述"上烧 Claude Code 的 token。要看全文就打开那个文件。
 
@@ -199,7 +199,7 @@ export PI_PLUGIN_ADVERSARIAL_REVIEW_MODEL=claude-sonnet-4-6
 | DeepSeek | `deepseek-v4-flash`（日常）· `deepseek-v4-pro`（对抗式） |
 | xAI | `grok-4.5` |
 | 智谱（GLM） | `glm-5.1` · `glm-5.2`（更重） |
-| 月之暗面（Kimi） | `kimi-k2.6` |
+| 月之暗面（Kimi） | `kimi-k3`（或 `kimi-k2.6`） |
 | MiniMax | `MiniMax-M3` |
 | 字节（Seed） | `doubao-seed-2.1-pro` |
 | 小米（MiMo） | `mimo-v2.5`（日常）· `mimo-v2.5-pro`（更重） |

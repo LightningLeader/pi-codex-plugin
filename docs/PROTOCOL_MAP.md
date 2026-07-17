@@ -20,7 +20,7 @@ fix it here first; the implementation will follow.
 | **Review verb** | Native `review/start` with `target = uncommittedChanges \| baseBranch` | None | Build the review prompt client-side and send it as a normal `prompt`. Same for adversarial. |
 | **Sandbox** | `sandbox: "read-only" \| "workspace-write"` per turn | None — instead allowlist via `--tools read,grep,find,ls` | Translate at spawn time, not per-turn. |
 | **Approval policy** | `approvalPolicy: "never"` (we always use never) | No equivalent (extensions can gate via UI, built-ins don't) | Drop entirely. |
-| **Reasoning effort** | `effort: none\|minimal\|low\|medium\|high\|xhigh` on `turn/start` | `set_thinking_level` with `off\|minimal\|low\|medium\|high\|xhigh` | Send `set_thinking_level` after spawn, before `prompt`. `none` → `off`. |
+| **Reasoning effort** | `effort: none\|minimal\|low\|medium\|high\|xhigh` on `turn/start` | `set_thinking_level` with `off\|minimal\|low\|medium\|high\|xhigh\|max` | Send `set_thinking_level` after spawn, before `prompt`. `none` → `off`. |
 | **Resume** | `thread/resume` (RPC) | `pi --mode rpc --session <UUID-or-path>` (spawn arg) | Resume happens at spawn, not via RPC. |
 | **Cancel running turn** | `turn/interrupt` (RPC) | `abort` (RPC) | Direct rename. |
 | **Session ID** | Returned in `thread/started` notif | Returned in `get_state` response (`sessionId`, `sessionFile`) | Issue a `get_state` once after spawn to capture it. |
