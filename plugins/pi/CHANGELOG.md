@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.7.2
+
+- Fix install failure on Claude Code >= 2.1 (PR #26, thanks @Heelc). The
+  plugin-manifest schema requires `commands` and `hooks` component paths to
+  start with `./`; the bare paths were rejected with
+  `hooks: Invalid input, commands: Invalid input`, so the plugin could not be
+  installed at all. Every path in `plugins/pi/.claude-plugin/plugin.json` is
+  now `./`-prefixed. Files and directory layout are unchanged.
+
 ## 0.7.1
 
 - Pi 0.80.x compatibility:
