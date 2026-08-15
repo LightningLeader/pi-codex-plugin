@@ -5,7 +5,6 @@
   "author": {
     "name": "Agents365-ai"
   },
-  "hooks": "./hooks/hooks.json",
   "commands": [
     "./commands/adversarial-review.md",
     "./commands/cancel.md",
