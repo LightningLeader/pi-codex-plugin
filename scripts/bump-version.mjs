@@ -19,7 +19,7 @@ const TARGETS = [
     ]
   },
   {
-    file: "plugins/pi/.codex-plugin/plugin.json",
+    file: "plugins/pi-codex/.codex-plugin/plugin.json",
     allowCodexCachebuster: true,
     values: [
       {
@@ -32,7 +32,7 @@ const TARGETS = [
     ]
   },
   {
-    file: "plugins/pi/.claude-plugin/plugin.json",
+    file: "plugins/pi-codex/.claude-plugin/plugin.json",
     values: [
       {
         label: "version",
@@ -55,7 +55,7 @@ const TARGETS = [
         }
       },
       {
-        label: "plugins[pi].version",
+        label: "plugins[pi-codex].version",
         get: (json) => findMarketplacePlugin(json).version,
         set: (json, version) => {
           findMarketplacePlugin(json).version = version;
@@ -125,8 +125,8 @@ function requireObject(value, label) {
 }
 
 function findMarketplacePlugin(json) {
-  const plugin = json.plugins?.find((entry) => entry?.name === "pi");
-  requireObject(plugin, ".claude-plugin/marketplace.json plugins[pi]");
+  const plugin = json.plugins?.find((entry) => entry?.name === "pi-codex");
+  requireObject(plugin, ".claude-plugin/marketplace.json plugins[pi-codex]");
   return plugin;
 }
 

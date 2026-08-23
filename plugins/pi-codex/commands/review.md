@@ -18,7 +18,7 @@ Core constraint:
 Execution:
 - Run the review in the foreground.
 - If there is nothing to review (empty working tree and no base branch diff), say so and skip the review.
-- `/pi:review` does not accept extra focus text. If the user needs custom review instructions or more adversarial framing, they should use `/pi:adversarial-review`.
+- `/pi-codex:review` does not accept extra focus text. If the user needs custom review instructions or more adversarial framing, they should use `/pi-codex:adversarial-review`.
 - `--incremental` only reviews commits since the last review on the current branch (cached per branch); falls back to a full review when there is no valid cache (no prior review, or the cached commit is no longer an ancestor of HEAD, e.g. after a rebase). Not combinable with `--base`. Composes with `--models`/`--shards`.
 - `--models <m1,m2,...>` (2+ models) runs a multi-model review panel: the same diff is reviewed by every listed model in parallel and the findings are merged, with consensus findings (reported by 2+ models) ranked first.
 - `--shards <N>` (N >= 2, and only when more than one file changed) splits the changed files across N review jobs that run in parallel, each scoped to only its own files, then merges the findings into one result. Not combinable with `--models`.

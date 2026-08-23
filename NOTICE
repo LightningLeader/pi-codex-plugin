@@ -1,7 +1,11 @@
-pi-plugin-cc
-Copyright 2026 Agents365-ai
+pi-codex-plugin
+Modifications Copyright 2026 LightningLeader
 
-This product is a derivative of codex-plugin-cc
+This product is a derivative of pi-plugin-cc
+Copyright 2026 Agents365-ai
+https://github.com/Agents365-ai/pi-plugin-cc
+
+pi-plugin-cc is a derivative of codex-plugin-cc
 Copyright 2026 OpenAI
 https://github.com/openai/codex-plugin-cc
 

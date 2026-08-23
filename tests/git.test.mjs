@@ -7,7 +7,7 @@ import {
   normalizeMaxInlineFiles,
   normalizeMaxInlineDiffBytes,
   formatUntrackedFile,
-} from "../plugins/pi/scripts/lib/git.mjs";
+} from "../plugins/pi-codex/scripts/lib/git.mjs";
 
 // ---------------------------------------------------------------------------
 // listUniqueFiles — pure function

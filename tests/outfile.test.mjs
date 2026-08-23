@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { renderOutFileSummary } from "../plugins/pi/scripts/lib/render.mjs";
+import { renderOutFileSummary } from "../plugins/pi-codex/scripts/lib/render.mjs";
 
 function reviewExecution(findings) {
   return {

@@ -5,7 +5,7 @@ import {
   describeFallback,
   modelLabel,
   runWithModelFallback
-} from "../plugins/pi/scripts/lib/fallback.mjs";
+} from "../plugins/pi-codex/scripts/lib/fallback.mjs";
 
 // ---------------------------------------------------------------------------
 // buildModelChain

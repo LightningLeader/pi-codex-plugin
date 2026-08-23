@@ -21,10 +21,10 @@ Core constraint:
 Execution:
 - Run the review in the foreground.
 - If there is nothing to review (empty working tree and no base branch diff), say so and skip the review.
-- `/pi:adversarial-review` uses the same review target selection as `/pi:review`.
+- `/pi-codex:adversarial-review` uses the same review target selection as `/pi-codex:review`.
 - It supports working-tree review, branch review, and `--base <ref>`.
 - It does not support `--scope staged` or `--scope unstaged`.
-- Unlike `/pi:review`, it can still take extra focus text after the flags.
+- Unlike `/pi-codex:review`, it can still take extra focus text after the flags.
 - `--models <m1,m2,...>` (2+ models) runs the adversarial review as a multi-model panel with merged, consensus-ranked findings.
 
 Foreground flow:

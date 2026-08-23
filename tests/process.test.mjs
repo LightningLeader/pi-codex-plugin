@@ -5,7 +5,7 @@ import {
   binaryAvailable,
   formatCommandFailure,
   terminateProcessTree,
-} from "../plugins/pi/scripts/lib/process.mjs";
+} from "../plugins/pi-codex/scripts/lib/process.mjs";
 
 // ---------------------------------------------------------------------------
 // formatCommandFailure — pure function, no mocking needed

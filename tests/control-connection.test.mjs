@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { localControlAccessDenialCode } from "../plugins/pi/scripts/lib/control-connection.mjs";
+import { localControlAccessDenialCode } from "../plugins/pi-codex/scripts/lib/control-connection.mjs";
 
 describe("Pi Control Center connection errors", () => {
   it("recognizes nested loopback permission denials", () => {

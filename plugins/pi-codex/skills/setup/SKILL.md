@@ -1,6 +1,6 @@
 ---
 name: setup
-description: "Check Pi CLI installation, provider configuration, models, and pi-subagents readiness for pi-plugin-cc. Use for setup and troubleshooting, not for running a task."
+description: "Check Pi CLI installation, provider configuration, models, and pi-subagents readiness for pi-codex-plugin. Use for setup and troubleshooting, not for running a task."
 ---
 
 # Pi Setup

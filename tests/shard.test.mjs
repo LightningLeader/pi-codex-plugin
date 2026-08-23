@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { mergeShardReviews, splitFilesIntoShards } from "../plugins/pi/scripts/lib/shard.mjs";
+import { mergeShardReviews, splitFilesIntoShards } from "../plugins/pi-codex/scripts/lib/shard.mjs";
 
 function finding(overrides = {}) {
   return {

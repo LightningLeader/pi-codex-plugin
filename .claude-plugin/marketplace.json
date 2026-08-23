@@ -1,7 +1,7 @@
 {
-  "name": "agents365-pi",
+  "name": "lightningleader",
   "owner": {
-    "name": "Agents365-ai"
+    "name": "LightningLeader"
   },
   "metadata": {
     "description": "Pi plugins to use in Claude Code for delegation and code review — model-agnostic, works with any provider pi is configured for.",
@@ -9,13 +9,13 @@
   },
   "plugins": [
     {
-      "name": "pi",
+      "name": "pi-codex",
       "description": "Use the Pi coding agent from Claude Code to review code or delegate tasks.",
       "version": "0.8.0",
       "author": {
-        "name": "Agents365-ai"
+        "name": "LightningLeader"
       },
-      "source": "./plugins/pi"
+      "source": "./plugins/pi-codex"
     }
   ]
 }

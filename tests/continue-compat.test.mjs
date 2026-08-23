@@ -10,7 +10,7 @@ import { fileURLToPath } from "node:url";
 
 const execFileAsync = promisify(execFile);
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const COMPANION = path.join(REPO_ROOT, "plugins/pi/scripts/pi-companion.mjs");
+const COMPANION = path.join(REPO_ROOT, "plugins/pi-codex/scripts/pi-companion.mjs");
 
 describe("legacy Control Center continuation", () => {
   it("continues the exact registered RPC session without the new /api/continue endpoint", async () => {

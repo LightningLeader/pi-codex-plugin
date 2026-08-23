@@ -5,8 +5,8 @@ import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 
-import { buildRacerLabels, buildRaceWorktreePath, sanitizeModelForPath } from "../plugins/pi/scripts/lib/race.mjs";
-import { addRaceWorktree, captureWorktreePatch, removeRaceWorktree } from "../plugins/pi/scripts/lib/git.mjs";
+import { buildRacerLabels, buildRaceWorktreePath, sanitizeModelForPath } from "../plugins/pi-codex/scripts/lib/race.mjs";
+import { addRaceWorktree, captureWorktreePatch, removeRaceWorktree } from "../plugins/pi-codex/scripts/lib/git.mjs";
 
 // ---------------------------------------------------------------------------
 // sanitizeModelForPath

@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { parseStructuredOutput } from "../plugins/pi/scripts/lib/pi.mjs";
+import { parseStructuredOutput } from "../plugins/pi-codex/scripts/lib/pi.mjs";
 
 // ---------------------------------------------------------------------------
 // parseStructuredOutput — pure function

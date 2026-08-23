@@ -5,8 +5,8 @@ import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 
-import { readReviewCache, writeReviewCache, reviewCacheFile } from "../plugins/pi/scripts/lib/review-cache.mjs";
-import { getHeadSha, isAncestor } from "../plugins/pi/scripts/lib/git.mjs";
+import { readReviewCache, writeReviewCache, reviewCacheFile } from "../plugins/pi-codex/scripts/lib/review-cache.mjs";
+import { getHeadSha, isAncestor } from "../plugins/pi-codex/scripts/lib/git.mjs";
 
 function tempDir(prefix) {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));

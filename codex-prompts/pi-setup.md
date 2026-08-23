@@ -1,7 +1,7 @@
 Check whether the Pi CLI is installed and configured, and report readiness.
 
-1. Resolve the plugin root: `PI_ROOT="${PI_PLUGIN_ROOT:-$HOME/pi-plugin-cc}"`.
-2. Run: `node "$PI_ROOT/plugins/pi/scripts/pi-companion.mjs" setup $ARGUMENTS`
+1. Resolve the plugin root: `PI_ROOT="${PI_PLUGIN_ROOT:-$HOME/pi-codex-plugin}"`.
+2. Run: `node "$PI_ROOT/plugins/pi-codex/scripts/pi-companion.mjs" setup $ARGUMENTS`
 3. If stdout or stderr contains `spawnSync ... EPERM`, treat the result as a
    sandbox execution failure, not evidence that Node or Pi is missing. Rerun the
    same setup command with sandbox escalation and use that result.

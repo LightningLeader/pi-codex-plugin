@@ -9,11 +9,11 @@ import {
   readWatcherFile,
   upsertJob,
   writeJobFile
-} from "../plugins/pi/scripts/lib/state.mjs";
+} from "../plugins/pi-codex/scripts/lib/state.mjs";
 import {
   DEFAULT_WATCH_POLL_INTERVAL_MS,
   watchJob
-} from "../plugins/pi/scripts/lib/job-watcher.mjs";
+} from "../plugins/pi-codex/scripts/lib/job-watcher.mjs";
 
 function withFixture(run) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-watch-test-"));

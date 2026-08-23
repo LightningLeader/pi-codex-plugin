@@ -5,7 +5,7 @@ import {
   defaultState,
   nowIso,
   generateJobId,
-} from "../plugins/pi/scripts/lib/state.mjs";
+} from "../plugins/pi-codex/scripts/lib/state.mjs";
 
 // ---------------------------------------------------------------------------
 // defaultState — pure function

@@ -1,5 +1,5 @@
 {
-  "name": "@agents365/pi-plugin-cc",
+  "name": "pi-codex-plugin",
   "version": "0.8.0",
   "private": true,
   "type": "module",

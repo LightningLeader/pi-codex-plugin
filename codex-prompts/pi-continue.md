@@ -1,7 +1,7 @@
 Continue a completed Pi task in its original live RPC process and return Pi's output verbatim.
 
-1. Resolve the plugin root: `PI_ROOT="${PI_PLUGIN_ROOT:-$HOME/pi-plugin-cc}"`.
-2. Run: `node "$PI_ROOT/plugins/pi/scripts/pi-companion.mjs" continue $ARGUMENTS`.
+1. Resolve the plugin root: `PI_ROOT="${PI_PLUGIN_ROOT:-$HOME/pi-codex-plugin}"`.
+2. Run: `node "$PI_ROOT/plugins/pi-codex/scripts/pi-companion.mjs" continue $ARGUMENTS`.
 3. Return the command's stdout verbatim — no paraphrasing or commentary.
 
 Usage:

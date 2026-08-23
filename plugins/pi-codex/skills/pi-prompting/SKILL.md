@@ -1,12 +1,11 @@
 ---
 name: pi-prompting
 description: Internal guidance for composing prompts that Pi runs (DeepSeek by default) handle reliably for coding, review, diagnosis, and research tasks
-user-invocable: false
 ---
 
 # Pi Prompting
 
-Use this skill when `pi:pi-companion-forwarder` needs to ask Pi for help on a non-trivial coding or investigation task.
+Use this skill when `pi-codex:pi-companion-forwarder` needs to ask Pi for help on a non-trivial coding or investigation task.
 
 Pi runs whatever model the user has configured. By default this plugin targets DeepSeek V4 (Pro for review, Flash for everyday tasks). The guidance below assumes the prompt may run on either a non-reasoning model (Flash) or a reasoning model (Pro). Bias toward concrete, numbered checklists rather than abstract instructions — both model classes follow those reliably.
 
@@ -29,7 +28,7 @@ When to add extra blocks:
 - Research or recommendation tasks: add a short `<sources>` block listing what Pi is allowed to consult.
 
 How to choose prompt shape:
-- Use the built-in `/pi:review` or `/pi:adversarial-review` commands when the job is reviewing local git changes. Those prompts already carry the review contract.
+- Use the built-in `/pi-codex:review` or `/pi-codex:adversarial-review` commands when the job is reviewing local git changes. Those prompts already carry the review contract.
 - Use `task` when the job is diagnosis, planning, research, or implementation and you need to control the prompt more directly.
 - Use `task --resume-last` for follow-up instructions on the same Pi session. Send only the delta instruction instead of restating the whole prompt unless the direction changed materially.
 
@@ -53,4 +52,4 @@ When pi-subagents is installed:
 - Suggested agent routing: scout for exploration, researcher for web/docs, planner for design, worker for implementation, reviewer for code review.
 - Never suggest subagents in adversarial-review or stop-review-gate prompts (those need deterministic behavior).
 - The block is a suggestion, not a command — Pi decides whether to delegate.
-- For dedicated multi-task parallel execution, use `/pi:parallel-rescue "task1" "task2" ...` instead of manual prompt construction.
+- For dedicated multi-task parallel execution, use `/pi-codex:parallel-rescue "task1" "task2" ...` instead of manual prompt construction.

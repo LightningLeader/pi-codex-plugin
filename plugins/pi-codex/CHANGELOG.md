@@ -1,9 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Rebrand the project as `pi-codex-plugin`, publish it under LightningLeader,
+  and rename the native Codex plugin ID from `pi` to `pi-codex`.
+
 ## 0.8.0
 
 - Package the repository as a native Codex plugin with
-  `plugins/pi/.codex-plugin/plugin.json` and namespaced skills for review, delegation,
+  `plugins/pi-codex/.codex-plugin/plugin.json` and namespaced skills for review, delegation,
   live continuation, job control, setup, and the RPC dashboard. Retain legacy
   `codex-prompts/` only for older clients.
 - Add Pi Control Center, a local-only web dashboard backed by a persistent RPC
@@ -93,7 +98,7 @@
   plugin-manifest schema requires `commands` and `hooks` component paths to
   start with `./`; the bare paths were rejected with
   `hooks: Invalid input, commands: Invalid input`, so the plugin could not be
-  installed at all. Every path in `plugins/pi/.claude-plugin/plugin.json` is
+  installed at all. Every path in `plugins/pi-codex/.claude-plugin/plugin.json` is
   now `./`-prefixed. Files and directory layout are unchanged.
 
 ## 0.7.1

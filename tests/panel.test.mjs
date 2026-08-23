@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { findingsMatch, mergePanelReviews, parseModelList } from "../plugins/pi/scripts/lib/panel.mjs";
+import { findingsMatch, mergePanelReviews, parseModelList } from "../plugins/pi-codex/scripts/lib/panel.mjs";
 
 function finding(overrides = {}) {
   return {

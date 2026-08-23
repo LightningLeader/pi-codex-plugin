@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { parseArgs, splitRawArgumentString } from "../plugins/pi/scripts/lib/args.mjs";
+import { parseArgs, splitRawArgumentString } from "../plugins/pi-codex/scripts/lib/args.mjs";
 
 // ---------------------------------------------------------------------------
 // parseArgs — pure function

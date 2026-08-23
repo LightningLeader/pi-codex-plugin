@@ -1,7 +1,7 @@
 Run a Pi adversarial review — one that challenges the approach itself — and return its output verbatim.
 
-1. Resolve the plugin root: `PI_ROOT="${PI_PLUGIN_ROOT:-$HOME/pi-plugin-cc}"`.
-2. Run: `node "$PI_ROOT/plugins/pi/scripts/pi-companion.mjs" adversarial-review $ARGUMENTS`
+1. Resolve the plugin root: `PI_ROOT="${PI_PLUGIN_ROOT:-$HOME/pi-codex-plugin}"`.
+2. Run: `node "$PI_ROOT/plugins/pi-codex/scripts/pi-companion.mjs" adversarial-review $ARGUMENTS`
 3. Return the command's stdout verbatim — no paraphrasing, no commentary, no fixes.
 
 Any non-flag text in the arguments is treated as the review focus. Pass-through flags: `--base <ref>`, `--scope`, `--model <id>`, `--effort <level>`.

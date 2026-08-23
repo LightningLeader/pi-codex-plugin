@@ -4,7 +4,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { startControlServer } from "../plugins/pi/scripts/lib/control-server.mjs";
+import { startControlServer } from "../plugins/pi-codex/scripts/lib/control-server.mjs";
 
 class FakePiRpcClient {
   constructor(sessionFile) {

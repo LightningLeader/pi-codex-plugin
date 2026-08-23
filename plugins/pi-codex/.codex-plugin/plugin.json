@@ -1,11 +1,13 @@
 {
-  "name": "pi",
-  "version": "0.8.0+codex.20260823112850",
+  "name": "pi-codex",
+  "version": "0.8.0+codex.20260823150414",
   "description": "Use the Pi coding agent from Codex for reviews, delegated tasks, supervised background work, live RPC continuation, and job control.",
   "author": {
-    "name": "Agents365-ai"
+    "name": "LightningLeader",
+    "url": "https://github.com/LightningLeader"
   },
-  "repository": "https://github.com/Agents365-ai/pi-plugin-cc",
+  "homepage": "https://github.com/LightningLeader/pi-codex-plugin",
+  "repository": "https://github.com/LightningLeader/pi-codex-plugin",
   "license": "Apache-2.0",
   "keywords": [
     "pi",
@@ -16,10 +18,10 @@
   ],
   "skills": "./skills/",
   "interface": {
-    "displayName": "Pi Coding Agent",
+    "displayName": "Pi for Codex",
     "shortDescription": "Delegate coding work and reviews to Pi.",
     "longDescription": "Run Pi code reviews and implementation tasks, inspect background jobs, operate the RPC Control Center, and continue work in the exact original live Pi process.",
-    "developerName": "Agents365-ai",
+    "developerName": "LightningLeader",
     "category": "Developer Tools",
     "capabilities": [
       "Code review",
@@ -30,7 +32,6 @@
     "defaultPrompt": [
       "Use Pi to review my current changes.",
       "Delegate this implementation task to Pi.",
-      "Run this Pi task in supervised background mode.",
       "Continue the latest live Pi task."
     ],
     "brandColor": "#45D6B5"

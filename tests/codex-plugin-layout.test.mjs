@@ -5,7 +5,7 @@ import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const PLUGIN_ROOT = path.join(REPO_ROOT, "plugins", "pi");
+const PLUGIN_ROOT = path.join(REPO_ROOT, "plugins", "pi-codex");
 const PUBLIC_SKILLS = [
   "adversarial-review",
   "cancel",

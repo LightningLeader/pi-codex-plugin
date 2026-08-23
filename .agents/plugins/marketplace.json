@@ -1,14 +1,14 @@
 {
-  "name": "agents365-pi",
+  "name": "lightningleader",
   "interface": {
-    "displayName": "Agents365 Pi"
+    "displayName": "LightningLeader Plugins"
   },
   "plugins": [
     {
-      "name": "pi",
+      "name": "pi-codex",
       "source": {
         "source": "local",
-        "path": "./plugins/pi"
+        "path": "./plugins/pi-codex"
       },
       "policy": {
         "installation": "AVAILABLE",

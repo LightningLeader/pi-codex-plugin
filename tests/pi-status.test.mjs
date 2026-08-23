@@ -4,7 +4,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { getPiModelsStatus } from "../plugins/pi/scripts/lib/pi.mjs";
+import { getPiModelsStatus } from "../plugins/pi-codex/scripts/lib/pi.mjs";
 
 function withTempPiDir(fn) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-status-"));

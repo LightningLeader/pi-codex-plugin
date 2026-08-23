@@ -1,10 +1,10 @@
-# pi-plugin-cc — drive the Pi coding agent from Claude Code and Codex 🥧
+# pi-codex-plugin — drive the Pi coding agent from Claude Code and Codex 🥧
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
-[![GitHub stars](https://img.shields.io/github/stars/Agents365-ai/pi-plugin-cc?style=flat&logo=github)](https://github.com/Agents365-ai/pi-plugin-cc/stargazers)
-[![GitHub forks](https://img.shields.io/github/forks/Agents365-ai/pi-plugin-cc?style=flat&logo=github)](https://github.com/Agents365-ai/pi-plugin-cc/network/members)
-[![Latest Release](https://img.shields.io/github/v/release/Agents365-ai/pi-plugin-cc?logo=github)](https://github.com/Agents365-ai/pi-plugin-cc/releases/latest)
-[![Last Commit](https://img.shields.io/github/last-commit/Agents365-ai/pi-plugin-cc?logo=github)](https://github.com/Agents365-ai/pi-plugin-cc/commits/main)
+[![GitHub stars](https://img.shields.io/github/stars/LightningLeader/pi-codex-plugin?style=flat&logo=github)](https://github.com/LightningLeader/pi-codex-plugin/stargazers)
+[![GitHub forks](https://img.shields.io/github/forks/LightningLeader/pi-codex-plugin?style=flat&logo=github)](https://github.com/LightningLeader/pi-codex-plugin/network/members)
+[![Latest Release](https://img.shields.io/github/v/release/LightningLeader/pi-codex-plugin?logo=github)](https://github.com/LightningLeader/pi-codex-plugin/releases/latest)
+[![Last Commit](https://img.shields.io/github/last-commit/LightningLeader/pi-codex-plugin?logo=github)](https://github.com/LightningLeader/pi-codex-plugin/commits/main)
 
 [![Claude Code Plugin](https://img.shields.io/badge/Claude%20Code-plugin-8a2be2)](https://docs.claude.com/en/docs/claude-code/plugins)
 [![Pi Coding Agent](https://img.shields.io/badge/Pi-coding%20agent-0a7d4a)](https://github.com/earendil-works/pi)
@@ -21,17 +21,17 @@ A Claude Code plugin that delegates reviews and coding tasks to the [Pi coding a
 - **Code review** against the working tree or a branch base, with structured findings
 - **Adversarial review** that challenges the design — not just spell-checks the diff
 - **Task delegation** for diagnoses, refactors, and longer rescues, foreground or background
-- **Parallel fan-out** — `/pi:parallel-rescue` runs multiple independent tasks concurrently via [`pi-subagents`](https://github.com/nicobailon/pi-subagents)
-- **Sharded parallel review** — `/pi:review --shards <N>` splits a large diff's changed files across N review jobs that run in parallel, then merges the findings
+- **Parallel fan-out** — `/pi-codex:parallel-rescue` runs multiple independent tasks concurrently via [`pi-subagents`](https://github.com/nicobailon/pi-subagents)
+- **Sharded parallel review** — `/pi-codex:review --shards <N>` splits a large diff's changed files across N review jobs that run in parallel, then merges the findings
 - **Background job control** — `status`, `result`, `cancel`, and stop-time review gate
 - **Local RPC control center** — watch text/thinking, tool calls, and terminal output live; prompt, steer, follow up, or abort from a browser
 - **No OAuth** — pi authenticates by API key (provider-specific), no `codex login` required
 
-Integrates with [`pi-subagents`](https://github.com/nicobailon/pi-subagents) (`pi install npm:pi-subagents`): `/pi:setup` detects it and lists the agent profiles, `/pi:rescue` prompts advertise the `subagent` tool to Pi, and `/pi:parallel-rescue` fans multiple tasks out to parallel child agents (scout, researcher, planner, worker, reviewer, …).
+Integrates with [`pi-subagents`](https://github.com/nicobailon/pi-subagents) (`pi install npm:pi-subagents`): `/pi-codex:setup` detects it and lists the agent profiles, `/pi-codex:rescue` prompts advertise the `subagent` tool to Pi, and `/pi-codex:parallel-rescue` fans multiple tasks out to parallel child agents (scout, researcher, planner, worker, reviewer, …).
 
 ## 🔄 How it works
 
-<img src="docs/pi-plugin-cc-workflow.png" alt="pi-plugin-cc workflow" width="80%">
+<img src="docs/pi-codex-plugin-workflow.png" alt="pi-codex-plugin workflow" width="80%">
 
 Pi is one-conversation-per-process, so every task still gets its own `pi --mode rpc` process. When a Control Center is running, Codex-launched foreground and background tasks are attached to its live session registry and remain visible and interactive there; otherwise they fall back to a direct process. Background jobs are also tracked in workspace-scoped state files. Review prompts inline the JSON schema since Pi has no `outputSchema` knob.
 
@@ -39,16 +39,16 @@ Pi is one-conversation-per-process, so every task still gets its own `pi --mode 
 
 | Command | What it does |
 |---|---|
-| `/pi:setup` | Verifies `pi` is installed + a provider is configured; toggles the stop-time review gate |
-| `/pi:review` | Standard code review of local git state |
-| `/pi:adversarial-review` | Steerable challenge review — questions the approach itself |
-| `/pi:rescue` | Delegate investigation or implementation to a Pi run via the `pi:pi-companion-forwarder` subagent |
-| `/pi:continue [--job <job-id>]` | Run another job in the original task's still-live Control Session and RPC process |
-| `/pi:parallel-rescue` | Run multiple independent tasks in parallel via pi-subagents (`subagent({ tasks })` fan-out) |
-| `/pi:status [job-id]` | List active / recent Pi jobs in this repository |
-| `/pi:result <job-id>` | Show the stored final output for a finished job |
-| `/pi:cancel <job-id>` | Terminate a running background job |
-| `/pi:ui [--background\|--status\|--stop]` | Start, inspect, or stop the local Pi RPC web control center |
+| `/pi-codex:setup` | Verifies `pi` is installed + a provider is configured; toggles the stop-time review gate |
+| `/pi-codex:review` | Standard code review of local git state |
+| `/pi-codex:adversarial-review` | Steerable challenge review — questions the approach itself |
+| `/pi-codex:rescue` | Delegate investigation or implementation to a Pi run via the `pi-codex:pi-companion-forwarder` subagent |
+| `/pi-codex:continue [--job <job-id>]` | Run another job in the original task's still-live Control Session and RPC process |
+| `/pi-codex:parallel-rescue` | Run multiple independent tasks in parallel via pi-subagents (`subagent({ tasks })` fan-out) |
+| `/pi-codex:status [job-id]` | List active / recent Pi jobs in this repository |
+| `/pi-codex:result <job-id>` | Show the stored final output for a finished job |
+| `/pi-codex:cancel <job-id>` | Terminate a running background job |
+| `/pi-codex:ui [--background\|--status\|--stop]` | Start, inspect, or stop the local Pi RPC web control center |
 
 Every command accepts `--model <id>` to pin a specific model just for that run. With no `--model` and no env override (see [Pick your model](#pick-your-model)), pi falls back to whatever it has configured by default.
 
@@ -72,72 +72,72 @@ pi --list-models | head
 Install the plugin in Claude Code:
 
 ```text
-> /plugin marketplace add Agents365-ai/pi-plugin-cc
-> /plugin install pi@agents365-pi
+> /plugin marketplace add LightningLeader/pi-codex-plugin
+> /plugin install pi-codex@lightningleader
 > /reload-plugins
-> /pi:setup
+> /pi-codex:setup
 ```
 
-`/pi:setup` returns a readiness report. If `pi` is missing and `npm` is on PATH, it offers to install it for you.
+`/pi-codex:setup` returns a readiness report. If `pi` is missing and `npm` is on PATH, it offers to install it for you.
 
 ## Usage
 
 ```text
-> /pi:review
-> /pi:review --base main
-> /pi:review --model claude-sonnet-4
-> /pi:review --out-file review.md
-> /pi:adversarial-review focus on the new auth middleware
-> /pi:rescue investigate why the Windows CI build is failing
-> /pi:rescue --background --model gpt-4o refactor src/payments/
-> /pi:continue --job task-mpgyiwb9-e3k641 apply the review fixes
-> /pi:parallel-rescue "audit the auth module" "benchmark the db queries" "update the API docs"
-> /pi:status
-> /pi:status task-mpgyiwb9-e3k641 --wait
-> /pi:result task-mpgyiwb9-e3k641
-> /pi:cancel task-mpgyiwb9-e3k641
-> /pi:ui --background
-> /pi:ui --status
+> /pi-codex:review
+> /pi-codex:review --base main
+> /pi-codex:review --model claude-sonnet-4
+> /pi-codex:review --out-file review.md
+> /pi-codex:adversarial-review focus on the new auth middleware
+> /pi-codex:rescue investigate why the Windows CI build is failing
+> /pi-codex:rescue --background --model gpt-4o refactor src/payments/
+> /pi-codex:continue --job task-mpgyiwb9-e3k641 apply the review fixes
+> /pi-codex:parallel-rescue "audit the auth module" "benchmark the db queries" "update the API docs"
+> /pi-codex:status
+> /pi-codex:status task-mpgyiwb9-e3k641 --wait
+> /pi-codex:result task-mpgyiwb9-e3k641
+> /pi-codex:cancel task-mpgyiwb9-e3k641
+> /pi-codex:ui --background
+> /pi-codex:ui --status
 ```
 
 ### Pi Control Center
 
-`/pi:ui --background` starts a local dashboard on `127.0.0.1:43120` and prints an authenticated URL with a random access token. The newest live dashboard is also registered as the user-local global control center: Codex-launched foreground and background `task` commands from other working directories connect to it automatically while retaining their own cwd. They therefore appear as the same fully interactive RPC sessions as conversations created in the web UI, with streaming `text_delta`, `thinking_delta`, tool calls, partial tool output, normal prompts, `steer`, `follow_up`, `abort`, and extension UI responses. If no dashboard is reachable, background tasks retain the direct-worker fallback. The service does not listen on the LAN by default; descriptor files are stored with user-only permissions.
+`/pi-codex:ui --background` starts a local dashboard on `127.0.0.1:43120` and prints an authenticated URL with a random access token. The newest live dashboard is also registered as the user-local global control center: Codex-launched foreground and background `task` commands from other working directories connect to it automatically while retaining their own cwd. They therefore appear as the same fully interactive RPC sessions as conversations created in the web UI, with streaming `text_delta`, `thinking_delta`, tool calls, partial tool output, normal prompts, `steer`, `follow_up`, `abort`, and extension UI responses. If no dashboard is reachable, background tasks retain the direct-worker fallback. The service does not listen on the LAN by default; descriptor files are stored with user-only permissions.
 
-While the dashboard is running, new `/pi:rescue --background` jobs are automatically routed through its daemon and become fully interactive in the browser. Legacy jobs that were already running are still listed with their logs, but their RPC pipes remain owned by their original workers and cannot be attached. `--race` continues to use isolated worktree workers. `/pi:ui --stop` closes the service and all sessions it owns.
+While the dashboard is running, new `/pi-codex:rescue --background` jobs are automatically routed through its daemon and become fully interactive in the browser. Legacy jobs that were already running are still listed with their logs, but their RPC pipes remain owned by their original workers and cannot be attached. `--race` continues to use isolated worktree workers. `/pi-codex:ui --stop` closes the service and all sessions it owns.
 
-`/pi:continue --job <job-id> <instruction>` creates a new tracked job inside the exact live Control Session that handled the referenced task. It reuses the same `controlSessionId`, `piSessionId`, and RPC PID; without `--job`, it selects the newest idle live task session for the current caller and workspace. This operation is strict: a missing, exited, disconnected, or busy original session is an error, and it never starts a replacement process or silently falls back to disk-session resume. RPC processes remain idle until explicitly ended in the dashboard.
+`/pi-codex:continue --job <job-id> <instruction>` creates a new tracked job inside the exact live Control Session that handled the referenced task. It reuses the same `controlSessionId`, `piSessionId`, and RPC PID; without `--job`, it selects the newest idle live task session for the current caller and workspace. This operation is strict: a missing, exited, disconnected, or busy original session is an error, and it never starts a replacement process or silently falls back to disk-session resume. RPC processes remain idle until explicitly ended in the dashboard.
 
 `--effort <off|minimal|low|medium|high|xhigh|max>` is passed through to Pi via `set_thinking_level`. Models that do not support thinking silently ignore it (the plugin logs a one-line note to stderr when this happens).
 
-`--out-file <path>` (on `/pi:review`, `/pi:adversarial-review`, `/pi:rescue`, `/pi:continue`, `/pi:result`) writes Pi's full output to a file and returns only a short summary — verdict, finding counts, one line per finding. The heavy reasoning already runs on the cheaper model; this also keeps the large result out of the calling agent's context, so a big review doesn't burn Claude Code tokens on the relay. Open the file for the full detail.
+`--out-file <path>` (on `/pi-codex:review`, `/pi-codex:adversarial-review`, `/pi-codex:rescue`, `/pi-codex:continue`, `/pi-codex:result`) writes Pi's full output to a file and returns only a short summary — verdict, finding counts, one line per finding. The heavy reasoning already runs on the cheaper model; this also keeps the large result out of the calling agent's context, so a big review doesn't burn Claude Code tokens on the relay. Open the file for the full detail.
 
-`--incremental` (on `/pi:review`, `/pi:adversarial-review`) reviews only the commits since the last review on the current branch, using a per-branch cache of the last-reviewed commit — saving Pi input tokens and time by skipping the code that was already reviewed. Falls back to a full review when there is no valid cache.
+`--incremental` (on `/pi-codex:review`, `/pi-codex:adversarial-review`) reviews only the commits since the last review on the current branch, using a per-branch cache of the last-reviewed commit — saving Pi input tokens and time by skipping the code that was already reviewed. Falls back to a full review when there is no valid cache.
 
 ## 🧩 Use from Codex
 
-This repository is now a native Codex plugin: `plugins/pi/.codex-plugin/plugin.json` sits beside the Claude manifest and its capabilities are packaged under `plugins/pi/skills/`. Install the repository marketplace:
+This repository is now a native Codex plugin: `plugins/pi-codex/.codex-plugin/plugin.json` sits beside the Claude manifest and its capabilities are packaged under `plugins/pi-codex/skills/`. Install the repository marketplace:
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/Agents365-ai/pi-plugin-cc ~/pi-plugin-cc
+git clone https://github.com/LightningLeader/pi-codex-plugin ~/pi-codex-plugin
 
 # 2. Register this repository marketplace and install the plugin
-codex plugin marketplace add ~/pi-plugin-cc
-codex plugin add pi@agents365-pi
+codex plugin marketplace add ~/pi-codex-plugin
+codex plugin add pi-codex@lightningleader
 
 # 3. Start a new Codex thread so it discovers the plugin skills
 ```
 
-Explicit skill invocations are `$pi:review`, `$pi:adversarial-review`, `$pi:rescue`, `$pi:continue`, `$pi:parallel-rescue`, `$pi:status`, `$pi:watch`, `$pi:result`, `$pi:cancel`, `$pi:setup`, and `$pi:ui`. Codex can also select the matching skill implicitly from a natural-language request.
+Explicit skill invocations are `$pi-codex:review`, `$pi-codex:adversarial-review`, `$pi-codex:rescue`, `$pi-codex:continue`, `$pi-codex:parallel-rescue`, `$pi-codex:status`, `$pi-codex:watch`, `$pi-codex:result`, `$pi-codex:cancel`, `$pi-codex:setup`, and `$pi-codex:ui`. Codex can also select the matching skill implicitly from a natural-language request.
 
-Codex-only `$pi:rescue --supervised <task>` starts Pi in the background and then assigns a lightweight Codex subagent to watch that Job, leaving the main conversation free for other work. `$pi:watch <job-id>` can attach the same supervision to an already-running job. A watcher only waits for status: it never edits files, cancels, retries, or launches Pi. It reports a compact completion notice to the parent and persists its state for Pi Control Center. At most two Pi watcher subagents are used concurrently; when no slot is available the task keeps running and is reported as unsupervised.
+Codex-only `$pi-codex:rescue --supervised <task>` starts Pi in the background and then assigns a lightweight Codex subagent to watch that Job, leaving the main conversation free for other work. `$pi-codex:watch <job-id>` can attach the same supervision to an already-running job. A watcher only waits for status: it never edits files, cancels, retries, or launches Pi. It reports a compact completion notice to the parent and persists its state for Pi Control Center. At most two Pi watcher subagents are used concurrently; when no slot is available the task keeps running and is reported as unsupervised.
 
-Watchers check job state every 10 seconds by default. Either Codex invocation accepts a per-run `--poll-interval-ms <milliseconds>` override, for example `$pi:watch task-xxx --poll-interval-ms 5000` or `$pi:rescue --supervised --poll-interval-ms 5000 <task>`; the minimum is 100 milliseconds.
+Watchers check job state every 10 seconds by default. Either Codex invocation accepts a per-run `--poll-interval-ms <milliseconds>` override, for example `$pi-codex:watch task-xxx --poll-interval-ms 5000` or `$pi-codex:rescue --supervised --poll-interval-ms 5000 <task>`; the minimum is 100 milliseconds.
 
 Polling stays inside one blocking local Node command; the watcher subagent does not reason again or call the model on every check. It uses only small startup/final turns and never fetches or relays the full task result automatically.
 
-The underlying `node plugins/pi/scripts/pi-companion.mjs watch <job-id> --json` command is a deterministic blocking primitive. It does not create Codex subagents itself; the Codex skills perform that orchestration.
+The underlying `node plugins/pi-codex/scripts/pi-companion.mjs watch <job-id> --json` command is a deterministic blocking primitive. It does not create Codex subagents itself; the Codex skills perform that orchestration.
 
 `codex-prompts/` remains only for older Codex clients that still support `~/.codex/prompts`. Codex CLI 0.149 and later should use plugin skills instead of copied prompt files.
 
@@ -148,8 +148,8 @@ Not available under Codex: the stop-time review gate and session-resume prompts 
 One reviewer has blind spots; a panel doesn't share them. Passing `--models` to either review command runs the same diff through several models **in parallel** and merges their findings — issues reported by 2+ models rank first with a `found by:` tag:
 
 ```text
-> /pi:review --models deepseek-v4-flash,claude-sonnet-4-6,gpt-5-mini
-> /pi:adversarial-review --models deepseek-v4-pro,o1 focus on concurrency
+> /pi-codex:review --models deepseek-v4-flash,claude-sonnet-4-6,gpt-5-mini
+> /pi-codex:adversarial-review --models deepseek-v4-pro,o1 focus on concurrency
 ```
 
 - Consensus findings (2+ models) are listed first; single-model findings follow.
@@ -166,18 +166,18 @@ Set a fallback chain once, and any failed run — provider outage, auth error, e
 export PI_PLUGIN_FALLBACK_MODELS=deepseek-v4-flash,MiniMax-M3
 ```
 
-Applies to reviews and rescue tasks alike. When a fallback produced the result, the output ends with a `Model fallback:` note (and the JSON payload carries `modelAttempts`). `/pi:setup` shows the configured chain.
+Applies to reviews and rescue tasks alike. When a fallback produced the result, the output ends with a `Model fallback:` note (and the JSON payload carries `modelAttempts`). `/pi-codex:setup` shows the configured chain.
 
 ## 🏁 Model racing
 
 For hard problems, run the same rescue task with several models **in parallel** and pick the winner:
 
 ```text
-> /pi:rescue --race deepseek-v4-pro,claude-sonnet-4-6 fix the flaky retry logic in src/queue.mjs
-> /pi:rescue --race deepseek-v4-flash,gemini-2.5-pro why does the Windows CI build fail?
+> /pi-codex:rescue --race deepseek-v4-pro,claude-sonnet-4-6 fix the flaky retry logic in src/queue.mjs
+> /pi-codex:rescue --race deepseek-v4-flash,gemini-2.5-pro why does the Windows CI build fail?
 ```
 
-- **Write races** (`--write`, the `/pi:rescue` default): each racer works in an isolated git worktree created from `HEAD` — racers can never touch your working tree or each other. Each racer's result is captured as a patch; review them and apply exactly one with `git apply <patch>`.
+- **Write races** (`--write`, the `/pi-codex:rescue` default): each racer works in an isolated git worktree created from `HEAD` — racers can never touch your working tree or each other. Each racer's result is captured as a patch; review them and apply exactly one with `git apply <patch>`.
 - **Read-only races** (investigations): racers analyze the same tree; the output presents each answer side by side — agreement across models is a strong signal.
 - A racer that fails or produces no changes is reported as such; the race succeeds while at least one racer finishes.
 - Not combinable with `--model` or `--resume` (each racer starts a fresh session). Racers start from `HEAD`, so commit or stash first if the task concerns uncommitted work.
@@ -188,7 +188,7 @@ The plugin keeps three layers of model resolution:
 
 | Priority | Source | Example |
 |---|---|---|
-| 1 | `--model <id>` on the slash command | `/pi:review --model gpt-4o` |
+| 1 | `--model <id>` on the slash command | `/pi-codex:review --model gpt-4o` |
 | 2 | Env var (review / adversarial-review only) | `export PI_PLUGIN_REVIEW_MODEL=deepseek-v4-flash`<br>`export PI_PLUGIN_ADVERSARIAL_REVIEW_MODEL=deepseek-v4-pro` |
 | 3 | Pi's own configured default | whatever your `~/.pi/agent/models.json` has, or `/model` last picked in pi TUI |
 
@@ -198,7 +198,7 @@ Layer 1 wins over layer 2 wins over layer 3. **None of the layers are required**
 
 These are opinions, not requirements. Pick what fits your latency / cost / quality budget.
 
-| Provider | Everyday review (`/pi:review`) | Adversarial review (`/pi:adversarial-review`) |
+| Provider | Everyday review (`/pi-codex:review`) | Adversarial review (`/pi-codex:adversarial-review`) |
 |---|---|---|
 | DeepSeek | `deepseek-v4-flash` | `deepseek-v4-pro` |
 | OpenAI | `gpt-4o-mini` or `gpt-5-mini` | `o1` or `gpt-5` |
@@ -230,7 +230,7 @@ The whole point of driving Pi is that you are not locked to Claude or GPT. These
 
 …and any other OpenAI-compatible endpoint you configure. Availability and the exact id depend on your `~/.pi/agent/models.json`.
 
-> Not every model emits clean JSON for the structured review commands. If `/pi:review` fails with a parse error on a given model, it is still fine for `/pi:rescue` (free-form) — or add it to a `PI_PLUGIN_FALLBACK_MODELS` chain so a flaky member is retried with the next one. (Observed: some MiniMax and local models echo the prompt back instead of returning JSON.)
+> Not every model emits clean JSON for the structured review commands. If `/pi-codex:review` fails with a parse error on a given model, it is still fine for `/pi-codex:rescue` (free-form) — or add it to a `PI_PLUGIN_FALLBACK_MODELS` chain so a flaky member is retried with the next one. (Observed: some MiniMax and local models echo the prompt back instead of returning JSON.)
 
 ## Configure pi
 
@@ -267,7 +267,7 @@ Full reference: [pi providers docs](https://github.com/earendil-works/pi/blob/ma
 
 ## Stop-time review gate
 
-Opt in with `/pi:setup --enable-review-gate`. When a Claude session ends, the plugin runs a Pi adversarial review of the previous turn and can block the stop if it finds material issues. If pi is unavailable while the gate is enabled, the hook blocks (it does **not** silently let the session end). Disable with `/pi:setup --disable-review-gate`.
+Opt in with `/pi-codex:setup --enable-review-gate`. When a Claude session ends, the plugin runs a Pi adversarial review of the previous turn and can block the stop if it finds material issues. If pi is unavailable while the gate is enabled, the hook blocks (it does **not** silently let the session end). Disable with `/pi-codex:setup --disable-review-gate`.
 
 ## 🔗 Related projects
 
@@ -275,44 +275,12 @@ Opt in with `/pi:setup --enable-review-gate`. When a Claude session ends, the pl
 |---|---|---|
 | [codex-plugin-cc](https://github.com/openai/codex-plugin-cc) | Same surface, runs Codex | You want OpenAI's Codex agent + ChatGPT auth |
 | [pi (earendil-works)](https://github.com/earendil-works/pi) | The coding agent this plugin drives | You want to use Pi directly without Claude Code |
-| [pi-subagents](https://github.com/nicobailon/pi-subagents) | Pi extension adding `subagent` tool + `/run` / `/chain` / `/parallel` | Powers `/pi:parallel-rescue` and lets `/pi:rescue` delegate to specialized child agents |
-
-## ❤️ Support
-
-If this plugin helps you, consider supporting the author:
-
-<table>
-  <tr>
-    <td align="center">
-      <img src="https://raw.githubusercontent.com/Agents365-ai/images_payment/main/qrcode/wechat-pay.png" width="180" alt="WeChat Pay">
-      <br>
-      <b>WeChat Pay</b>
-    </td>
-    <td align="center">
-      <img src="https://raw.githubusercontent.com/Agents365-ai/images_payment/main/qrcode/alipay.png" width="180" alt="Alipay">
-      <br>
-      <b>Alipay</b>
-    </td>
-    <td align="center">
-      <img src="https://raw.githubusercontent.com/Agents365-ai/images_payment/main/qrcode/buymeacoffee.png" width="180" alt="Buy Me a Coffee">
-      <br>
-      <b>Buy Me a Coffee</b>
-    </td>
-    <td align="center">
-      <img src="https://raw.githubusercontent.com/Agents365-ai/images_payment/main/awarding/award.gif" width="180" alt="Give a Reward">
-      <br>
-      <b>Give a Reward</b>
-    </td>
-  </tr>
-</table>
+| [pi-subagents](https://github.com/nicobailon/pi-subagents) | Pi extension adding `subagent` tool + `/run` / `/chain` / `/parallel` | Powers `/pi-codex:parallel-rescue` and lets `/pi-codex:rescue` delegate to specialized child agents |
 
 ## 👤 Author
 
-**Agents365-ai**
-
-- GitHub: https://github.com/Agents365-ai
-- Bilibili: https://space.bilibili.com/441831884
+[LightningLeader](https://github.com/LightningLeader)
 
 ## 📄 License
 
-[Apache License 2.0](LICENSE). Forked from [`codex-plugin-cc`](https://github.com/openai/codex-plugin-cc) (Apache-2.0, OpenAI) — see [NOTICE](NOTICE).
+[Apache License 2.0](LICENSE). Derived from [`pi-plugin-cc`](https://github.com/Agents365-ai/pi-plugin-cc), which was derived from [`codex-plugin-cc`](https://github.com/openai/codex-plugin-cc). See [NOTICE](NOTICE) for attribution.
