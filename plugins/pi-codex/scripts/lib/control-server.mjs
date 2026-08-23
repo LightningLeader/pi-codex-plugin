@@ -595,7 +595,7 @@ function createManagedTaskJob({ workspaceRoot, prompt, write, request, originSes
   const job = {
     id: jobId,
     kind: "task",
-    kindLabel: "rescue",
+    kindLabel: "task",
     title: parentJobId ? "Pi Continue" : "Pi Task",
     jobClass: "task",
     summary: prompt.replace(/\s+/g, " ").slice(0, 120),

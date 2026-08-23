@@ -12,6 +12,8 @@
 - Remove the `review` and `adversarial-review` skills together with their CLI
   commands, prompts, structured-output schema, incremental cache, panel, and
   sharding implementation.
+- Rename the `rescue` and `parallel-rescue` skills to the shorter `task` and
+  `parallel-task` names, and align task labels and documentation.
 
 ## 0.8.0
 

@@ -29,10 +29,10 @@ function getJobTypeLabel(job) {
     return job.kindLabel;
   }
   if (job.jobClass === "task") {
-    return "rescue";
+    return "task";
   }
   if (job.kind === "task") {
-    return "rescue";
+    return "task";
   }
   return "job";
 }

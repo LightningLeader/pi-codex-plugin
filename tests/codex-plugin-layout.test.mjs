@@ -11,11 +11,11 @@ const MARKETPLACE_PATH = path.join(REPO_ROOT, ".agents", "plugins", "marketplace
 const PUBLIC_SKILLS = [
   "cancel",
   "continue",
-  "parallel-rescue",
-  "rescue",
+  "parallel-task",
   "result",
   "setup",
   "status",
+  "task",
   "ui",
   "watch"
 ];
@@ -47,7 +47,10 @@ describe("Codex plugin skill layout", () => {
       "plugins/pi-codex/schemas/review-output.schema.json",
       "plugins/pi-codex/scripts/lib/review-cache.mjs",
       "plugins/pi-codex/scripts/lib/panel.mjs",
-      "plugins/pi-codex/scripts/lib/shard.mjs"
+      "plugins/pi-codex/scripts/lib/shard.mjs",
+      "plugins/pi-codex/skills/rescue",
+      "plugins/pi-codex/skills/parallel-rescue",
+      "plugins/pi-codex/prompts/parallel-rescue.md"
     ];
 
     for (const relativePath of forbiddenPaths) {

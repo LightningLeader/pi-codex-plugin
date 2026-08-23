@@ -1,9 +1,9 @@
 ---
-name: rescue
+name: task
 description: "Delegate an investigation or implementation task to the Pi coding agent. Use when the user asks Codex to hand work to Pi, including foreground, background, supervised-background, model, effort, and race modes."
 ---
 
-# Pi Rescue
+# Pi Task
 
 Treat the directory containing this `SKILL.md` as `<skill-root>`. Resolve `<plugin-root>` as `<skill-root>/../..`. Do not assume a fixed checkout path.
 

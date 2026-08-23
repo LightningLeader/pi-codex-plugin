@@ -11,7 +11,7 @@
 
 - Node.js 18.18 or later
 - A working `pi` CLI installation with at least one configured model provider
-- Optional: [`pi-subagents`](https://github.com/nicobailon/pi-subagents) for parallel rescue
+- Optional: [`pi-subagents`](https://github.com/nicobailon/pi-subagents) for parallel tasks
 
 Pi can use any provider it supports. Provider names or model IDs such as Anthropic Claude are Pi configuration choices; the host integration itself targets Codex only.
 
@@ -32,9 +32,9 @@ Start a new Codex thread after installation so the skills are loaded. Run `$pi-c
 | Skill | Purpose |
 | --- | --- |
 | `$pi-codex:setup` | Check the local Pi installation and configuration |
-| `$pi-codex:rescue` | Delegate an investigation or implementation task |
+| `$pi-codex:task` | Delegate an investigation or implementation task |
 | `$pi-codex:continue` | Continue a task in its original live Pi RPC process |
-| `$pi-codex:parallel-rescue` | Fan out explicitly independent tasks through pi-subagents |
+| `$pi-codex:parallel-task` | Fan out explicitly independent tasks through pi-subagents |
 | `$pi-codex:status` | Inspect tracked Pi jobs |
 | `$pi-codex:watch` | Attach a lightweight Codex watcher to a background job |
 | `$pi-codex:result` | Retrieve a completed job's stored result |
@@ -44,13 +44,13 @@ Start a new Codex thread after installation so the skills are loaded. Run `$pi-c
 Examples:
 
 ```text
-$pi-codex:rescue Investigate performance bottlenecks in the current implementation
-$pi-codex:rescue --write --background Implement the requested parser
+$pi-codex:task Investigate performance bottlenecks in the current implementation
+$pi-codex:task --write --background Implement the requested parser
 $pi-codex:status task-...
 $pi-codex:result task-...
 ```
 
-Rescue supports read-only or `--write` tasks, foreground/background execution, model selection, effort settings, output files, and model races.
+Task supports read-only or `--write` work, foreground/background execution, model selection, effort settings, output files, and model races.
 
 ## Background jobs and live continuation
 

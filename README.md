@@ -42,9 +42,9 @@ codex plugin add pi-codex@lightningleader
 | Skill | 用途 |
 | --- | --- |
 | `$pi-codex:setup` | 检查本地 Pi 安装和配置 |
-| `$pi-codex:rescue` | 委派调查或实现任务 |
+| `$pi-codex:task` | 委派调查或实现任务 |
 | `$pi-codex:continue` | 在原来的在线 Pi RPC 进程中继续任务 |
-| `$pi-codex:parallel-rescue` | 通过 pi-subagents 并行执行明确独立的任务 |
+| `$pi-codex:parallel-task` | 通过 pi-subagents 并行执行明确独立的任务 |
 | `$pi-codex:status` | 查看已追踪的 Pi 任务 |
 | `$pi-codex:watch` | 使用轻量 Codex 子代理监控后台任务 |
 | `$pi-codex:result` | 获取已完成任务保存的结果 |
@@ -54,13 +54,13 @@ codex plugin add pi-codex@lightningleader
 ## 使用示例
 
 ```text
-$pi-codex:rescue 调查当前实现中的性能瓶颈
-$pi-codex:rescue --write --background 实现所需的解析器
+$pi-codex:task 调查当前实现中的性能瓶颈
+$pi-codex:task --write --background 实现所需的解析器
 $pi-codex:status task-...
 $pi-codex:result task-...
 ```
 
-Rescue 支持只读或 `--write` 任务、前台或后台运行、模型选择、推理强度、结果输出文件和多模型竞速。
+Task 支持只读或 `--write` 任务、前台或后台运行、模型选择、推理强度、结果输出文件和多模型竞速。
 
 ## 后台任务
 

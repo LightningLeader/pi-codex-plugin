@@ -894,7 +894,7 @@ async function waitForManagedJobAndOutput(cwd, payload, { json = false, outFile 
 
 function getJobKindLabel(kind, jobClass) {
   if (jobClass === "task" || kind === "task") {
-    return "rescue";
+    return "task";
   }
   return "job";
 }

@@ -1,4 +1,4 @@
-// Model racing: run the same rescue task with several models in parallel and
+// Model racing: run the same task with several models in parallel and
 // let the caller pick the winner. Write races isolate each racer in its own
 // git worktree (created from HEAD) and capture the result as a patch.
 
