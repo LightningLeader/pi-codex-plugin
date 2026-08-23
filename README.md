@@ -1,4 +1,4 @@
-# Pi for Codex 🥧
+# Pi for Codex
 
 **中文** | [English](README_EN.md)
 
