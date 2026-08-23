@@ -362,6 +362,23 @@ describe("terminateProcessTree", () => {
       assert.equal(result.method, "taskkill");
     });
 
+    it("recognizes localized taskkill output for a missing process", () => {
+      const runCommandImpl = () => ({
+        error: null,
+        status: 128,
+        stdout: "错误: 找不到进程 1234。",
+        stderr: "",
+      });
+      const result = terminateProcessTree(1234, {
+        ...WIN_OPTS,
+        runCommandImpl,
+        killImpl: () => {},
+      });
+      assert.equal(result.attempted, true);
+      assert.equal(result.delivered, false);
+      assert.equal(result.method, "taskkill");
+    });
+
     it("falls back to process.kill when taskkill is unavailable (ENOENT)", () => {
       const runCommandImpl = () => ({
         error: Object.assign(new Error("ENOENT"), { code: "ENOENT" }),

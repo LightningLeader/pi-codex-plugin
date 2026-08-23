@@ -18,11 +18,23 @@ const STDERR_MAX_BYTES = 64 * 1024;
 const KILL_GRACE_MS = 5000;
 const SIGTERM_DELAY_MS = 50;
 
+export function buildPiRpcSpawnConfig(platform = process.platform, command = null) {
+  const isWindows = platform === "win32";
+  return {
+    command: command ?? (isWindows ? "pi.cmd" : "pi"),
+    detached: false,
+    shell: isWindows,
+    windowsHide: true
+  };
+}
+
 export class PiRpcClient {
   constructor(cwd, options = {}) {
     this.cwd = cwd;
     this.options = options;
-    this.command = options.command ?? CHANNEL_DEFAULTS.command;
+    const spawnConfig = buildPiRpcSpawnConfig(process.platform, options.command);
+    this.command = spawnConfig.command;
+    this.spawnConfig = spawnConfig;
     this.spawnArgs = [
       ...CHANNEL_DEFAULTS.modeArgs,
       ...(options.spawnArgs ?? CHANNEL_DEFAULTS.extraArgs)
@@ -62,11 +74,11 @@ export class PiRpcClient {
     try {
       this.proc = spawn(this.command, this.spawnArgs, {
         cwd: this.cwd,
-        detached: true,
+        detached: this.spawnConfig.detached,
         env: this.env,
         stdio: ["pipe", "pipe", "pipe"],
-        shell: process.platform === "win32" ? (process.env.SHELL || true) : false,
-        windowsHide: true
+        shell: this.spawnConfig.shell,
+        windowsHide: this.spawnConfig.windowsHide
       });
     } catch (error) {
       this._handleExit(error);
@@ -99,6 +111,9 @@ export class PiRpcClient {
 
     this.proc.on("close", () => {
       this._drainStdoutDecoder();
+      if (this.exitDetail && this.stderr.trim()) {
+        this.exitDetail = new Error(`${this.exitDetail.message}\nPi stderr:\n${this.stderr.trim()}`);
+      }
       this._handleExit(this.exitDetail);
     });
 

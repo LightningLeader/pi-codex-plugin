@@ -52,7 +52,7 @@ export function binaryAvailable(command, versionArgs = ["--version"], options = 
 }
 
 function looksLikeMissingProcessMessage(text) {
-  return /not found|no running instance|cannot find|does not exist|no such process/i.test(text);
+  return /not found|no running instance|cannot find|does not exist|no such process|找不到|无法找到|不存在|未找到/i.test(text);
 }
 
 // Default grace period before escalating SIGTERM to SIGKILL on Unix.
@@ -102,7 +102,7 @@ export function terminateProcessTree(pid, options = {}) {
     }
 
     const combinedOutput = `${result.stderr}\n${result.stdout}`.trim();
-    if (!result.error && looksLikeMissingProcessMessage(combinedOutput)) {
+    if (!result.error && (result.status === 128 || looksLikeMissingProcessMessage(combinedOutput))) {
       return { attempted: true, delivered: false, method: "taskkill", result };
     }
 
