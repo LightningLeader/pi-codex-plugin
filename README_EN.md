@@ -33,7 +33,7 @@ codex plugin marketplace add ~/pi-codex-plugin
 codex plugin add pi-codex@lightningleader
 ```
 
-After installation, start a new Codex conversation so the plugin skills are loaded. If the repository is private, cloning requires a GitHub account or SSH key with access.
+After installation, start a new Codex conversation so the plugin skills are loaded.
 
 Before first use, check the environment:
 
@@ -526,4 +526,4 @@ After changing the plugin during local development, refresh the Codex cachebuste
 
 ## License and Attribution
 
-This project is licensed under the [Apache License 2.0](LICENSE). See [NOTICE](NOTICE) for source information and required attribution notices. The project is maintained by [LightningLeader](https://github.com/LightningLeader).
+This project is licensed under the [Apache License 2.0](LICENSE). See [NOTICE](NOTICE) for source information and required attribution notices. The project is maintained by [LightningLeader](https://github.com/LightningLeader). This project was developed with reference to and based on [agents365-ai/pi-plugin-cc](https://github.com/agents365-ai/pi-plugin-cc).

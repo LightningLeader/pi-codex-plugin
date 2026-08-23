@@ -33,7 +33,7 @@ codex plugin marketplace add ~/pi-codex-plugin
 codex plugin add pi-codex@lightningleader
 ```
 
-安装完成后，新建一个 Codex 对话，让插件 skills 被加载。当前仓库为私有仓库时，克隆需要使用有访问权限的 GitHub 账号或 SSH 密钥。
+安装完成后，新建一个 Codex 对话，让插件 skills 被加载。
 
 首次使用先检查环境：
 
@@ -526,4 +526,4 @@ npm test
 
 ## 许可证与来源
 
-本项目使用 [Apache License 2.0](LICENSE)。来源和必须保留的版权说明见 [NOTICE](NOTICE)。项目由 [LightningLeader](https://github.com/LightningLeader) 维护。
+本项目使用 [Apache License 2.0](LICENSE)。来源和必须保留的版权说明见 [NOTICE](NOTICE)。项目由 [LightningLeader](https://github.com/LightningLeader) 维护。本项目参考并基于 [agents365-ai/pi-plugin-cc](https://github.com/agents365-ai/pi-plugin-cc) 开发。
