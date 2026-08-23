@@ -25,6 +25,18 @@
 
 Pi uses its own configured default provider. This plugin does not use Claude Code as its host.
 
+### Windows Note
+
+Pi requires a working Bash environment on Windows. Installing [Git for Windows](https://gitforwindows.org/) is recommended because it provides Git Bash. Pi normally discovers Git Bash automatically. If detection fails, set `shellPath` in `%USERPROFILE%\.pi\agent\settings.json` to the actual location of `bash.exe` on that machine, for example:
+
+```json
+{
+  "shellPath": "C:\\Program Files\\Git\\bin\\bash.exe"
+}
+```
+
+The installation location varies by user and installation method, so do not assume the example path always exists. Confirm the real `bash.exe` location first and see [Pi Windows Setup](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/windows.md) for complete instructions. This is a Windows runtime requirement of Pi itself, not an additional dependency introduced by this plugin.
+
 ## Installation
 
 ```bash

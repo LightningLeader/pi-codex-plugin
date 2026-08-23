@@ -25,6 +25,18 @@
 
 Pi 使用其自身配置的默认提供商。本插件不会把 Claude Code 当作宿主。
 
+### Windows 用户注意
+
+Pi 在 Windows 上需要可用的 Bash 环境，推荐安装 [Git for Windows](https://gitforwindows.org/) 提供的 Git Bash。Pi 通常会自动查找 Git Bash；如果未能正确识别，请在 `%USERPROFILE%\.pi\agent\settings.json` 中把 `shellPath` 设置为本机 `bash.exe` 的实际路径，例如：
+
+```json
+{
+  "shellPath": "C:\\Program Files\\Git\\bin\\bash.exe"
+}
+```
+
+安装位置可能因用户和安装方式而不同，不要直接假定示例路径一定存在。请先确认实际的 `bash.exe` 位置；完整说明参见 [Pi Windows Setup](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/windows.md)。这是 Pi 自身的 Windows 运行要求，不是本插件额外引入的依赖。
+
 ## 安装
 
 ```bash
