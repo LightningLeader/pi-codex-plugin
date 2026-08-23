@@ -1,6 +1,5 @@
 # Local working artifacts (not part of the plugin)
 refs/
-.claude/settings.local.json
 
 # Logs
 logs

@@ -11,7 +11,7 @@ Run `node <plugin-root>/scripts/pi-companion.mjs task` with the user's task as t
 
 - Add `--write` for implementation or file-changing work. Omit it for explicitly read-only investigation.
 - Pass through requested `--model`, `--effort`, `--background`, `--race`, `--out-file`, `--fresh`, or legacy resume options.
-- Prefer the `pi:continue` skill when the user wants to reuse the exact original live RPC process. Legacy `--resume-last` starts a replacement RPC from persisted Pi history.
+- Prefer the `pi-codex:continue` skill when the user wants to reuse the exact original live RPC process. Legacy `--resume-last` starts a replacement RPC from persisted Pi history.
 
 Return Pi's output without paraphrasing. A background launch should return its job ID for later status checks.
 

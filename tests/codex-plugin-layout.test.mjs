@@ -6,6 +6,8 @@ import { fileURLToPath } from "node:url";
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const PLUGIN_ROOT = path.join(REPO_ROOT, "plugins", "pi-codex");
+const MANIFEST_PATH = path.join(PLUGIN_ROOT, ".codex-plugin", "plugin.json");
+const MARKETPLACE_PATH = path.join(REPO_ROOT, ".agents", "plugins", "marketplace.json");
 const PUBLIC_SKILLS = [
   "adversarial-review",
   "cancel",
@@ -21,6 +23,51 @@ const PUBLIC_SKILLS = [
 ];
 
 describe("Codex plugin skill layout", () => {
+  it("keeps the manifest and marketplace entry aligned", () => {
+    const manifest = JSON.parse(fs.readFileSync(MANIFEST_PATH, "utf8"));
+    const marketplace = JSON.parse(fs.readFileSync(MARKETPLACE_PATH, "utf8"));
+    const entry = marketplace.plugins.find((plugin) => plugin.name === manifest.name);
+
+    assert.equal(manifest.name, "pi-codex");
+    assert.ok(entry, "marketplace should contain the pi-codex plugin");
+    assert.equal(entry.source.source, "local");
+    assert.equal(entry.source.path, "./plugins/pi-codex");
+  });
+
+  it("does not ship removed host compatibility surfaces", () => {
+    const forbiddenPaths = [
+      ".claude-plugin",
+      "codex-prompts",
+      "plugins/pi-codex/.claude-plugin",
+      "plugins/pi-codex/agents",
+      "plugins/pi-codex/commands",
+      "plugins/pi-codex/hooks"
+    ];
+
+    for (const relativePath of forbiddenPaths) {
+      assert.equal(fs.existsSync(path.join(REPO_ROOT, relativePath)), false, `${relativePath} should not exist`);
+    }
+  });
+
+  it("contains no legacy host environment or review-gate references", () => {
+    const forbidden = /CLAUDE_PLUGIN_DATA|CLAUDE_ENV_FILE|CLAUDE_PROJECT_DIR|stopReviewGate|task-resume-candidate/;
+    const roots = [
+      path.join(REPO_ROOT, "scripts"),
+      path.join(REPO_ROOT, "plugins", "pi-codex", "scripts"),
+      path.join(REPO_ROOT, "plugins", "pi-codex", "skills")
+    ];
+
+    const visit = (target) => {
+      for (const entry of fs.readdirSync(target, { withFileTypes: true })) {
+        const entryPath = path.join(target, entry.name);
+        if (entry.isDirectory()) visit(entryPath);
+        else assert.doesNotMatch(fs.readFileSync(entryPath, "utf8"), forbidden, entryPath);
+      }
+    };
+
+    for (const root of roots) visit(root);
+  });
+
   for (const skillName of PUBLIC_SKILLS) {
     it(`${skillName} references files that exist inside the installed plugin root`, () => {
       const skillFile = path.join(PLUGIN_ROOT, "skills", skillName, "SKILL.md");

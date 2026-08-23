@@ -120,9 +120,9 @@ function appendActiveJobsTable(lines, jobs) {
   lines.push("| Job | Kind | Status | Phase | Elapsed | Pi Session ID | Summary | Actions |");
   lines.push("| --- | --- | --- | --- | --- | --- | --- | --- |");
   for (const job of jobs) {
-    const actions = [`/pi:status ${job.id}`];
+    const actions = [`$pi-codex:status ${job.id}`];
     if (job.status === "queued" || job.status === "running") {
-      actions.push(`/pi:cancel ${job.id}`);
+      actions.push(`$pi-codex:cancel ${job.id}`);
     }
     lines.push(
       `| ${escapeMarkdownCell(job.id)} | ${escapeMarkdownCell(job.kindLabel)} | ${escapeMarkdownCell(job.status)} | ${escapeMarkdownCell(job.phase ?? "")} | ${escapeMarkdownCell(job.elapsed ?? "")} | ${escapeMarkdownCell(job.piSessionId ?? "")} | ${escapeMarkdownCell(job.summary ?? "")} | ${actions.map((action) => `\`${action}\``).join("<br>")} |`
@@ -155,14 +155,14 @@ function pushJobDetails(lines, job, options = {}) {
     lines.push(`  Log: ${job.logFile}`);
   }
   if ((job.status === "queued" || job.status === "running") && options.showCancelHint) {
-    lines.push(`  Cancel: /pi:cancel ${job.id}`);
+    lines.push(`  Cancel: $pi-codex:cancel ${job.id}`);
   }
   if (job.status !== "queued" && job.status !== "running" && options.showResultHint) {
-    lines.push(`  Result: /pi:result ${job.id}`);
+    lines.push(`  Result: $pi-codex:result ${job.id}`);
   }
   if (job.status !== "queued" && job.status !== "running" && job.jobClass === "task" && job.write && options.showReviewHint) {
-    lines.push("  Review changes: /pi:review --wait");
-    lines.push("  Stricter review: /pi:adversarial-review --wait");
+    lines.push("  Review changes: $pi-codex:review --wait");
+    lines.push("  Stricter review: $pi-codex:adversarial-review --wait");
   }
   if (job.progressPreview?.length) {
     lines.push("  Progress:");
@@ -225,17 +225,8 @@ export function renderSetupReport(report) {
 
   lines.push(
     `- session runtime: ${report.sessionRuntime.label}`,
-    `- review gate: ${report.reviewGateEnabled ? "enabled" : "disabled"}`,
     ""
   );
-
-  if (report.actionsTaken.length > 0) {
-    lines.push("Actions taken:");
-    for (const action of report.actionsTaken) {
-      lines.push(`- ${action}`);
-    }
-    lines.push("");
-  }
 
   if (report.nextSteps.length > 0) {
     lines.push("Next steps:");
@@ -549,7 +540,6 @@ export function renderStatusReport(report) {
     "# Pi Status",
     "",
     `Session runtime: ${report.sessionRuntime.label}`,
-    `Review gate: ${report.config.stopReviewGate ? "enabled" : "disabled"}`,
     ""
   ];
 
@@ -586,11 +576,6 @@ export function renderStatusReport(report) {
     lines.push("");
   } else if (report.running.length === 0 && !report.latestFinished) {
     lines.push("No jobs recorded yet.", "");
-  }
-
-  if (report.needsReview) {
-    lines.push("The stop-time review gate is enabled.");
-    lines.push("Ending the session will trigger a fresh Pi adversarial review and block if it finds issues.");
   }
 
   return `${lines.join("\n").trimEnd()}\n`;
@@ -681,7 +666,7 @@ export function renderCancelReport(job) {
   if (job.summary) {
     lines.push(`- Summary: ${job.summary}`);
   }
-  lines.push("- Check `/pi:status` for the updated queue.");
+  lines.push("- Check `$pi-codex:status` for the updated queue.");
 
   return `${lines.join("\n").trimEnd()}\n`;
 }

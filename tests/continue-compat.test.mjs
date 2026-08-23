@@ -85,7 +85,7 @@ describe("legacy Control Center continuation", () => {
         "follow up"
       ], {
         cwd,
-        env: { ...process.env, CLAUDE_PLUGIN_DATA: pluginData }
+        env: { ...process.env, PI_CODEX_DATA_DIR: pluginData }
       });
       assert.equal(prompt, "follow up");
       assert.equal(result.stdout, "legacy answer\n");

@@ -1,22 +1,23 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import path from "node:path";
 
 import {
   defaultState,
   nowIso,
   generateJobId,
+  resolvePluginDataDir,
 } from "../plugins/pi-codex/scripts/lib/state.mjs";
 
 // ---------------------------------------------------------------------------
 // defaultState — pure function
 // ---------------------------------------------------------------------------
 describe("defaultState", () => {
-  it("returns an object with version, config, and jobs", () => {
+  it("returns an object with version and jobs", () => {
     const state = defaultState();
     assert.equal(typeof state, "object");
-    assert.equal(state.version, 1);
-    assert.equal(typeof state.config, "object");
-    assert.equal(state.config.stopReviewGate, false);
+    assert.equal(state.version, 2);
+    assert.deepEqual(Object.keys(state).sort(), ["jobs", "version"]);
     assert.deepEqual(state.jobs, []);
   });
 
@@ -24,7 +25,43 @@ describe("defaultState", () => {
     const a = defaultState();
     const b = defaultState();
     assert.notStrictEqual(a.jobs, b.jobs);
-    assert.notStrictEqual(a.config, b.config);
+  });
+});
+
+describe("resolvePluginDataDir", () => {
+  it("prefers PI_CODEX_DATA_DIR", () => {
+    assert.equal(
+      resolvePluginDataDir({ env: { PI_CODEX_DATA_DIR: "./custom-state" }, cwd: "/repo" }),
+      path.resolve("/repo/custom-state")
+    );
+  });
+
+  it("uses XDG_STATE_HOME on Linux", () => {
+    assert.equal(
+      resolvePluginDataDir({ platform: "linux", env: { XDG_STATE_HOME: "/state" }, homeDir: "/home/user" }),
+      "/state/pi-codex-plugin"
+    );
+  });
+
+  it("uses the Linux home fallback", () => {
+    assert.equal(
+      resolvePluginDataDir({ platform: "linux", env: {}, homeDir: "/home/user" }),
+      "/home/user/.local/state/pi-codex-plugin"
+    );
+  });
+
+  it("uses Application Support on macOS", () => {
+    assert.equal(
+      resolvePluginDataDir({ platform: "darwin", env: {}, homeDir: "/Users/user" }),
+      "/Users/user/Library/Application Support/pi-codex-plugin"
+    );
+  });
+
+  it("uses LOCALAPPDATA on Windows", () => {
+    assert.equal(
+      resolvePluginDataDir({ platform: "win32", env: { LOCALAPPDATA: "C:\\Users\\user\\AppData\\Local" }, homeDir: "C:\\Users\\user" }),
+      path.join("C:\\Users\\user\\AppData\\Local", "pi-codex-plugin")
+    );
   });
 });
 

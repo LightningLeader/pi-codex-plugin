@@ -5,9 +5,9 @@ import path from "node:path";
 
 import { resolveWorkspaceRoot } from "./workspace.mjs";
 
-const STATE_VERSION = 1;
-const PLUGIN_DATA_ENV = "CLAUDE_PLUGIN_DATA";
-const FALLBACK_STATE_ROOT_DIR = path.join(os.tmpdir(), "pi-companion");
+const STATE_VERSION = 2;
+const PLUGIN_DATA_ENV = "PI_CODEX_DATA_DIR";
+const PLUGIN_DATA_DIR_NAME = "pi-codex-plugin";
 const STATE_FILE_NAME = "state.json";
 const JOBS_DIR_NAME = "jobs";
 const WATCHERS_DIR_NAME = "watchers";
@@ -20,14 +20,30 @@ export function nowIso() {
 export function defaultState() {
   return {
     version: STATE_VERSION,
-    config: {
-      stopReviewGate: false
-    },
     jobs: []
   };
 }
 
-export function resolveStateDir(cwd) {
+export function resolvePluginDataDir(options = {}) {
+  const env = options.env ?? process.env;
+  const platform = options.platform ?? process.platform;
+  const homeDir = options.homeDir ?? os.homedir();
+  const override = env[PLUGIN_DATA_ENV]?.trim();
+  if (override) {
+    return path.resolve(options.cwd ?? process.cwd(), override);
+  }
+  if (platform === "win32") {
+    const localAppData = env.LOCALAPPDATA?.trim() || path.join(homeDir, "AppData", "Local");
+    return path.join(localAppData, PLUGIN_DATA_DIR_NAME);
+  }
+  if (platform === "darwin") {
+    return path.join(homeDir, "Library", "Application Support", PLUGIN_DATA_DIR_NAME);
+  }
+  const stateHome = env.XDG_STATE_HOME?.trim() || path.join(homeDir, ".local", "state");
+  return path.join(stateHome, PLUGIN_DATA_DIR_NAME);
+}
+
+export function resolveStateDir(cwd, options = {}) {
   const workspaceRoot = resolveWorkspaceRoot(cwd);
   let canonicalWorkspaceRoot = workspaceRoot;
   try {
@@ -39,8 +55,7 @@ export function resolveStateDir(cwd) {
   const slugSource = path.basename(workspaceRoot) || "workspace";
   const slug = slugSource.replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/^-+|-+$/g, "") || "workspace";
   const hash = createHash("sha256").update(canonicalWorkspaceRoot).digest("hex").slice(0, 16);
-  const pluginDataDir = process.env[PLUGIN_DATA_ENV];
-  const stateRoot = pluginDataDir ? path.join(pluginDataDir, "state") : FALLBACK_STATE_ROOT_DIR;
+  const stateRoot = path.join(resolvePluginDataDir(options), "state");
   return path.join(stateRoot, `${slug}-${hash}`);
 }
 
@@ -57,11 +72,11 @@ export function resolveWatchersDir(cwd) {
 }
 
 export function ensureStateDir(cwd) {
-  fs.mkdirSync(resolveJobsDir(cwd), { recursive: true });
+  fs.mkdirSync(resolveJobsDir(cwd), { recursive: true, mode: 0o700 });
 }
 
 function ensureWatchersDir(cwd) {
-  fs.mkdirSync(resolveWatchersDir(cwd), { recursive: true });
+  fs.mkdirSync(resolveWatchersDir(cwd), { recursive: true, mode: 0o700 });
 }
 
 export function loadState(cwd) {
@@ -73,12 +88,7 @@ export function loadState(cwd) {
   try {
     const parsed = JSON.parse(fs.readFileSync(stateFile, "utf8"));
     return {
-      ...defaultState(),
-      ...parsed,
-      config: {
-        ...defaultState().config,
-        ...(parsed.config ?? {})
-      },
+      version: STATE_VERSION,
       jobs: Array.isArray(parsed.jobs) ? parsed.jobs : []
     };
   } catch {
@@ -109,10 +119,6 @@ export function saveState(cwd, state, previousJobs = state.jobs) {
   const nextJobs = pruneJobs(state.jobs ?? []);
   const nextState = {
     version: STATE_VERSION,
-    config: {
-      ...defaultState().config,
-      ...(state.config ?? {})
-    },
     jobs: nextJobs
   };
 
@@ -125,7 +131,7 @@ export function saveState(cwd, state, previousJobs = state.jobs) {
     removeFileIfExists(job.logFile);
   }
 
-  fs.writeFileSync(resolveStateFile(cwd), `${JSON.stringify(nextState, null, 2)}\n`, "utf8");
+  fs.writeFileSync(resolveStateFile(cwd), `${JSON.stringify(nextState, null, 2)}\n`, { encoding: "utf8", mode: 0o600 });
   return nextState;
 }
 
@@ -175,23 +181,10 @@ export function removeJob(cwd, jobId) {
   return removed;
 }
 
-export function setConfig(cwd, key, value) {
-  return updateState(cwd, (state) => {
-    state.config = {
-      ...state.config,
-      [key]: value
-    };
-  });
-}
-
-export function getConfig(cwd) {
-  return loadState(cwd).config;
-}
-
 export function writeJobFile(cwd, jobId, payload) {
   ensureStateDir(cwd);
   const jobFile = resolveJobFile(cwd, jobId);
-  fs.writeFileSync(jobFile, `${JSON.stringify(payload, null, 2)}\n`, "utf8");
+  fs.writeFileSync(jobFile, `${JSON.stringify(payload, null, 2)}\n`, { encoding: "utf8", mode: 0o600 });
   return jobFile;
 }
 

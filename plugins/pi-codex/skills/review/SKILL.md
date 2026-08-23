@@ -9,4 +9,4 @@ Treat the directory containing this `SKILL.md` as `<skill-root>`. Resolve `<plug
 
 Run `node <plugin-root>/scripts/pi-companion.mjs review` with any user-supplied `--base`, `--scope`, `--model`, `--models`, `--effort`, `--shards`, `--incremental`, or `--out-file` options.
 
-Return Pi's output without paraphrasing and do not apply fixes. If Pi is unavailable or unconfigured, recommend the `pi:setup` skill.
+Return Pi's output without paraphrasing and do not apply fixes. If Pi is unavailable or unconfigured, recommend the `pi-codex:setup` skill.

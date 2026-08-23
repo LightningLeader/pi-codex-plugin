@@ -20,13 +20,13 @@ function withFixture(run) {
   const workspace = path.join(root, "workspace");
   const pluginData = path.join(root, "plugin-data");
   fs.mkdirSync(workspace, { recursive: true });
-  const previous = process.env.CLAUDE_PLUGIN_DATA;
-  process.env.CLAUDE_PLUGIN_DATA = pluginData;
+  const previous = process.env.PI_CODEX_DATA_DIR;
+  process.env.PI_CODEX_DATA_DIR = pluginData;
   return Promise.resolve()
     .then(() => run({ root, workspace, pluginData }))
     .finally(() => {
-      if (previous === undefined) delete process.env.CLAUDE_PLUGIN_DATA;
-      else process.env.CLAUDE_PLUGIN_DATA = previous;
+      if (previous === undefined) delete process.env.PI_CODEX_DATA_DIR;
+      else process.env.PI_CODEX_DATA_DIR = previous;
       fs.rmSync(root, { recursive: true, force: true });
     });
 }

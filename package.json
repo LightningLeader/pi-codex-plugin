@@ -3,13 +3,12 @@
   "version": "0.8.0",
   "private": true,
   "type": "module",
-  "description": "Use the Pi coding agent from Claude Code or Codex to review code and delegate tasks.",
+  "description": "Use the Pi coding agent from Codex to review code and delegate tasks.",
   "license": "Apache-2.0",
   "engines": {
     "node": ">=18.18.0"
   },
   "files": [
-    "codex-prompts/",
     "plugins/",
     "scripts/",
     "package.json",

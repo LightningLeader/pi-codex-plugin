@@ -11,4 +11,4 @@ Run `node <plugin-root>/scripts/pi-companion.mjs setup` with the user's options.
 
 If the check reports `spawnSync ... EPERM`, treat it as a sandbox execution failure rather than evidence that Node or Pi is missing. Retry with the required sandbox permission when available; otherwise verify `command -v node`, `node --version`, `command -v pi`, and `pi --version` and report the check as inconclusive.
 
-Return the verified setup report. Claude-only stop-time review gate options do not apply in Codex.
+Return the verified setup report.

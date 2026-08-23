@@ -1,7 +1,7 @@
 import fs from "node:fs";
 
 import { getSessionRuntimeStatus } from "./pi.mjs";
-import { getConfig, listJobs, readJobFile, resolveJobFile } from "./state.mjs";
+import { listJobs, readJobFile, resolveJobFile } from "./state.mjs";
 import { SESSION_ID_ENV } from "./tracked-jobs.mjs";
 import { resolveWorkspaceRoot } from "./workspace.mjs";
 
@@ -207,12 +207,11 @@ function matchJobReference(jobs, reference, predicate = () => true) {
     throw new Error(`Job reference "${reference}" is ambiguous. Use a longer job id.`);
   }
 
-  throw new Error(`No job found for "${reference}". Run /pi:status to list known jobs.`);
+  throw new Error(`No job found for "${reference}". Run $pi-codex:status to list known jobs.`);
 }
 
 export function buildStatusSnapshot(cwd, options = {}) {
   const workspaceRoot = resolveWorkspaceRoot(cwd);
-  const config = getConfig(workspaceRoot);
   const jobs = sortJobsNewestFirst(filterJobsForCurrentSession(listJobs(workspaceRoot), options));
   const maxJobs = options.maxJobs ?? DEFAULT_MAX_STATUS_JOBS;
   const maxProgressLines = options.maxProgressLines ?? DEFAULT_MAX_PROGRESS_LINES;
@@ -230,12 +229,10 @@ export function buildStatusSnapshot(cwd, options = {}) {
 
   return {
     workspaceRoot,
-    config,
     sessionRuntime: getSessionRuntimeStatus(options.env, workspaceRoot),
     running,
     latestFinished,
-    recent,
-    needsReview: Boolean(config.stopReviewGate)
+    recent
   };
 }
 
@@ -244,7 +241,7 @@ export function buildSingleJobSnapshot(cwd, reference, options = {}) {
   const jobs = sortJobsNewestFirst(listJobs(workspaceRoot));
   const selected = matchJobReference(jobs, reference);
   if (!selected) {
-    throw new Error(`No job found for "${reference}". Run /pi:status to inspect known jobs.`);
+    throw new Error(`No job found for "${reference}". Run $pi-codex:status to inspect known jobs.`);
   }
 
   return {
@@ -268,11 +265,11 @@ export function resolveResultJob(cwd, reference) {
 
   const active = matchJobReference(jobs, reference, (job) => job.status === "queued" || job.status === "running");
   if (active) {
-    throw new Error(`Job ${active.id} is still ${active.status}. Check /pi:status and try again once it finishes.`);
+    throw new Error(`Job ${active.id} is still ${active.status}. Check $pi-codex:status and try again once it finishes.`);
   }
 
   if (reference) {
-    throw new Error(`No finished job found for "${reference}". Run /pi:status to inspect active jobs.`);
+    throw new Error(`No finished job found for "${reference}". Run $pi-codex:status to inspect active jobs.`);
   }
 
   throw new Error("No finished Pi jobs found for this repository yet.");
@@ -297,7 +294,7 @@ export function resolveCancelableJob(cwd, reference, options = {}) {
     return { workspaceRoot, job: sessionScopedActiveJobs[0] };
   }
   if (sessionScopedActiveJobs.length > 1) {
-    throw new Error("Multiple Pi jobs are active. Pass a job id to /pi:cancel.");
+    throw new Error("Multiple Pi jobs are active. Pass a job id to $pi-codex:cancel.");
   }
 
   if (getCurrentSessionId(options)) {

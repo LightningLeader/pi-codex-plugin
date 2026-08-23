@@ -4,6 +4,11 @@
 
 - Rebrand the project as `pi-codex-plugin`, publish it under LightningLeader,
   and rename the native Codex plugin ID from `pi` to `pi-codex`.
+- Remove the non-Codex host manifests, hooks, slash commands, forwarding agent,
+  and legacy prompt compatibility layer. The maintained product is now Codex-only.
+- Move runtime state to a private, platform-standard `pi-codex-plugin` data
+  directory with `PI_CODEX_DATA_DIR` as an explicit override.
+- Update documentation and runtime guidance to use `$pi-codex:<skill>` names.
 
 ## 0.8.0
 

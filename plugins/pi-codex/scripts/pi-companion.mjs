@@ -39,10 +39,8 @@ import { binaryAvailable, runCommand, terminateProcessTree } from "./lib/process
 import { loadPromptTemplate, interpolateTemplate } from "./lib/prompts.mjs";
 import {
   generateJobId,
-  getConfig,
   listJobs,
   resolveJobsDir,
-  setConfig,
   upsertJob,
   writeJobFile
 } from "./lib/state.mjs";
@@ -101,11 +99,10 @@ const DEFAULT_STATUS_WAIT_TIMEOUT_MS = 240000;
 const DEFAULT_STATUS_POLL_INTERVAL_MS = 2000;
 const VALID_REASONING_EFFORTS = new Set(["off", "minimal", "low", "medium", "high", "xhigh", "max"]);
 const EFFORT_ALIASES = new Map([["none", "off"]]);
-const STOP_REVIEW_TASK_MARKER = "Run a stop-gate review of the previous Claude turn.";
 
 // Model selection is delegated to pi by default. The plugin only forces a
-// specific model when the user pins one explicitly via --model on the slash
-// command or via these env vars. With both unset, pi picks the model it is
+// specific model when the user pins one explicitly via --model in a skill
+// invocation or via these env vars. With both unset, pi picks the model it is
 // configured for (any provider pi supports: DeepSeek, OpenAI, Anthropic,
 // Google, Ollama, LM Studio, or any OpenAI-compatible endpoint).
 const ENV_REVIEW_MODEL = process.env.PI_PLUGIN_REVIEW_MODEL?.trim() || null;
@@ -118,7 +115,7 @@ function printUsage() {
   console.log(
     [
       "Usage:",
-      "  node scripts/pi-companion.mjs setup [--enable-review-gate|--disable-review-gate] [--json]",
+      "  node scripts/pi-companion.mjs setup [--json]",
       "  node scripts/pi-companion.mjs review [--base <ref>] [--scope <auto|working-tree|branch>] [--incremental] [--model <model>|--models <m1,m2,...>] [--shards <N>] [--out-file <path>]",
       "  node scripts/pi-companion.mjs adversarial-review [--base <ref>] [--scope <auto|working-tree|branch>] [--incremental] [--model <model>|--models <m1,m2,...>] [--shards <N>] [--out-file <path>] [focus text]",
       "  node scripts/pi-companion.mjs task [--background] [--write] [--resume-last|--resume|--fresh] [--model <model>|--race <m1,m2,...>] [--effort <off|minimal|low|medium|high|xhigh|max>] [--out-file <path>] [prompt]",
@@ -544,13 +541,12 @@ function firstMeaningfulLine(text, fallback) {
   return line ?? fallback;
 }
 
-async function buildSetupReport(cwd, actionsTaken = []) {
+async function buildSetupReport(cwd) {
   const workspaceRoot = resolveWorkspaceRoot(cwd);
   const nodeStatus = binaryAvailable("node", ["--version"], { cwd });
   const piStatus = getPiAvailability(cwd);
   const modelsStatus = getPiModelsStatus(process.env);
   const subagentsStatus = getPiSubagentsStatus();
-  const config = getConfig(workspaceRoot);
 
   // Try to list available models from the pi CLI.
   let availableModels = [];
@@ -572,10 +568,6 @@ async function buildSetupReport(cwd, actionsTaken = []) {
       "Set a provider API key (e.g. `export DEEPSEEK_API_KEY=...`), run `/login` inside pi, or write `~/.pi/agent/models.json` per pi docs."
     );
   }
-  if (piStatus.available && modelsStatus.available && !config.stopReviewGate) {
-    nextSteps.push("Optional: run `/pi:setup --enable-review-gate` to require a fresh review before stop.");
-  }
-
   return {
     ready: nodeStatus.available && piStatus.available && modelsStatus.available,
     node: nodeStatus,
@@ -585,8 +577,6 @@ async function buildSetupReport(cwd, actionsTaken = []) {
     availableModels,
     fallbackModels: ENV_FALLBACK_MODELS,
     sessionRuntime: getSessionRuntimeStatus(process.env, workspaceRoot),
-    reviewGateEnabled: Boolean(config.stopReviewGate),
-    actionsTaken,
     nextSteps
   };
 }
@@ -594,26 +584,11 @@ async function buildSetupReport(cwd, actionsTaken = []) {
 async function handleSetup(argv) {
   const { options } = parseCommandInput(argv, {
     valueOptions: ["cwd"],
-    booleanOptions: ["json", "enable-review-gate", "disable-review-gate"]
+    booleanOptions: ["json"]
   });
 
-  if (options["enable-review-gate"] && options["disable-review-gate"]) {
-    throw new Error("Choose either --enable-review-gate or --disable-review-gate.");
-  }
-
   const cwd = resolveCommandCwd(options);
-  const workspaceRoot = resolveCommandWorkspace(options);
-  const actionsTaken = [];
-
-  if (options["enable-review-gate"]) {
-    setConfig(workspaceRoot, "stopReviewGate", true);
-    actionsTaken.push(`Enabled the stop-time review gate for ${workspaceRoot}.`);
-  } else if (options["disable-review-gate"]) {
-    setConfig(workspaceRoot, "stopReviewGate", false);
-    actionsTaken.push(`Disabled the stop-time review gate for ${workspaceRoot}.`);
-  }
-
-  const finalReport = await buildSetupReport(cwd, actionsTaken);
+  const finalReport = await buildSetupReport(cwd);
   outputResult(options.json ? finalReport : renderSetupReport(finalReport), options.json);
 }
 
@@ -633,14 +608,14 @@ function buildReviewPrompt(templateName, context, focusText) {
 function ensurePiAvailable(cwd) {
   const availability = getPiAvailability(cwd);
   if (!availability.available) {
-    throw new Error(`${availability.detail} Then rerun \`/pi:setup\`.`);
+    throw new Error(`${availability.detail} Then rerun \`$pi-codex:setup\`.`);
   }
 }
 
 function validateRegularReviewRequest(_target, focusText) {
   if (focusText.trim()) {
     throw new Error(
-      `\`/pi:review\` does not accept custom focus text. Retry with \`/pi:adversarial-review ${focusText.trim()}\` to ask for focused review.`
+      `\`$pi-codex:review\` does not accept custom focus text. Retry with \`$pi-codex:adversarial-review ${focusText.trim()}\` to ask for focused review.`
     );
   }
 }
@@ -653,12 +628,12 @@ function isActiveJobStatus(status) {
   return status === "queued" || status === "running";
 }
 
-function getCurrentClaudeSessionId() {
+function getCurrentCallerSessionId() {
   return process.env[SESSION_ID_ENV] ?? null;
 }
 
-function filterJobsForCurrentClaudeSession(jobs) {
-  const sessionId = getCurrentClaudeSessionId();
+function filterJobsForCurrentCallerSession(jobs) {
+  const sessionId = getCurrentCallerSessionId();
   if (!sessionId) {
     return jobs;
   }
@@ -698,10 +673,10 @@ async function waitForSingleJobSnapshot(cwd, reference, options = {}) {
 function resolveLatestTrackedTaskSession(cwd, options = {}) {
   const workspaceRoot = resolveWorkspaceRoot(cwd);
   const jobs = sortJobsNewestFirst(listJobs(workspaceRoot)).filter((job) => job.id !== options.excludeJobId);
-  const visibleJobs = filterJobsForCurrentClaudeSession(jobs);
+  const visibleJobs = filterJobsForCurrentCallerSession(jobs);
   const activeTask = visibleJobs.find((job) => job.jobClass === "task" && (job.status === "queued" || job.status === "running"));
   if (activeTask) {
-    throw new Error(`Task ${activeTask.id} is still running. Use /pi:status before continuing it.`);
+    throw new Error(`Task ${activeTask.id} is still running. Use $pi-codex:status before continuing it.`);
   }
 
   const trackedTask = findLatestResumableTaskJob(visibleJobs);
@@ -742,7 +717,7 @@ async function executeReviewRun(request) {
 // shard.
 async function finishSingleReview(request, prep) {
   const { target, reviewName, isAdversarial, context, prompt } = prep;
-  // request.model: explicit --model on the slash command. Highest priority.
+  // request.model: explicit --model in the skill invocation. Highest priority.
   // ENV_*_REVIEW_MODEL: opt-in pin via env var.
   // null: defer to pi's own configured default model.
   const envDefault = isAdversarial ? ENV_ADVERSARIAL_REVIEW_MODEL : ENV_REVIEW_MODEL;
@@ -1247,13 +1222,6 @@ function buildTaskRunMetadata({ prompt, resumeLast = false, raceModels = null })
       summary: `Race (${raceModels.length} models): ${shorten(prompt || "Task")}`
     };
   }
-  if (!resumeLast && String(prompt ?? "").includes(STOP_REVIEW_TASK_MARKER)) {
-    return {
-      title: "Pi Stop Gate Review",
-      summary: "Stop-gate review of previous Claude turn"
-    };
-  }
-
   const title = resumeLast ? "Pi Resume" : "Pi Task";
   const fallbackSummary = resumeLast ? DEFAULT_CONTINUE_PROMPT : "Task";
   return {
@@ -1263,7 +1231,7 @@ function buildTaskRunMetadata({ prompt, resumeLast = false, raceModels = null })
 }
 
 function renderQueuedTaskLaunch(payload) {
-  return `${payload.title} started in the background as ${payload.jobId}. Check /pi:status ${payload.jobId} for progress.\n`;
+  return `${payload.title} started in the background as ${payload.jobId}. Check $pi-codex:status ${payload.jobId} for progress.\n`;
 }
 
 async function waitForManagedJobAndOutput(cwd, payload, { json = false, outFile = null } = {}) {
@@ -1644,7 +1612,7 @@ async function handleTask(argv) {
           payload = await enqueueTaskInControlCenter(descriptor, {
             cwd,
             workspaceRoot,
-            originSessionId: getCurrentClaudeSessionId(),
+            originSessionId: getCurrentCallerSessionId(),
             model,
             effort,
             prompt,
@@ -1729,7 +1697,7 @@ async function handleContinue(argv) {
     ) === index);
   if (descriptors.length === 0) {
     throw new Error(
-      "Cannot continue in the original Pi RPC process: no Pi Control Center is registered. Start /pi:ui first; live continuation never falls back to a new process."
+      "Cannot continue in the original Pi RPC process: no Pi Control Center is registered. Start $pi-codex:ui first; live continuation never falls back to a new process."
     );
   }
 
@@ -1741,7 +1709,7 @@ async function handleContinue(argv) {
       payload = await enqueueContinueInControlCenter(descriptor, {
         cwd,
         workspaceRoot,
-        originSessionId: getCurrentClaudeSessionId(),
+        originSessionId: getCurrentCallerSessionId(),
         jobId: reference,
         prompt
       });
@@ -1757,7 +1725,7 @@ async function handleContinue(argv) {
       if (accessDenialCode) {
         throw new Error(
           `Cannot access the registered Pi Control Center because local loopback access was denied (${accessDenialCode}). ` +
-          "Retry pi:continue with sandbox escalation/approval. The original RPC process was not changed and no new RPC process was started.",
+          "Retry $pi-codex:continue with sandbox escalation/approval. The original RPC process was not changed and no new RPC process was started.",
           { cause: error }
         );
       }
@@ -1917,41 +1885,6 @@ function handleResult(argv) {
   }
 }
 
-function handleTaskResumeCandidate(argv) {
-  const { options } = parseCommandInput(argv, {
-    valueOptions: ["cwd"],
-    booleanOptions: ["json"]
-  });
-
-  const workspaceRoot = resolveCommandWorkspace(options);
-  const sessionId = getCurrentClaudeSessionId();
-  const jobs = filterJobsForCurrentClaudeSession(sortJobsNewestFirst(listJobs(workspaceRoot)));
-  const candidate = findLatestResumableTaskJob(jobs);
-
-  const payload = {
-    available: Boolean(candidate),
-    sessionId,
-    candidate:
-      candidate == null
-        ? null
-        : {
-            id: candidate.id,
-            status: candidate.status,
-            title: candidate.title ?? null,
-            summary: candidate.summary ?? null,
-            piSessionId: candidate.piSessionId,
-            piSessionFile: candidate.piSessionFile ?? null,
-            completedAt: candidate.completedAt ?? null,
-            updatedAt: candidate.updatedAt ?? null
-          }
-  };
-
-  const rendered = candidate
-    ? `Resumable task found: ${candidate.id} (${candidate.status}).\n`
-    : "No resumable task found for this session.\n";
-  outputCommandResult(payload, rendered, options.json);
-}
-
 async function handleCancel(argv) {
   const { options, positionals } = parseCommandInput(argv, {
     valueOptions: ["cwd"],
@@ -2044,9 +1977,6 @@ async function main() {
       break;
     case "result":
       await handleResult(argv);
-      break;
-    case "task-resume-candidate":
-      await handleTaskResumeCandidate(argv);
       break;
     case "cancel":
       await handleCancel(argv);
