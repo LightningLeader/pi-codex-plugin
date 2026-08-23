@@ -19,6 +19,19 @@ const TARGETS = [
     ]
   },
   {
+    file: "plugins/pi/.codex-plugin/plugin.json",
+    allowCodexCachebuster: true,
+    values: [
+      {
+        label: "version",
+        get: (json) => json.version,
+        set: (json, version) => {
+          json.version = version;
+        }
+      }
+    ]
+  },
+  {
     file: "plugins/pi/.claude-plugin/plugin.json",
     values: [
       {
@@ -143,7 +156,12 @@ function checkVersions(root, expectedVersion) {
     const json = readJson(root, target.file);
     for (const value of target.values) {
       const actual = value.get(json);
-      if (actual !== expectedVersion) {
+      const matchesExpected = actual === expectedVersion || (
+        target.allowCodexCachebuster &&
+        typeof actual === "string" &&
+        actual.startsWith(`${expectedVersion}+codex.`)
+      );
+      if (!matchesExpected) {
         mismatches.push(`${target.file} ${value.label}: expected ${expectedVersion}, found ${actual ?? "<missing>"}`);
       }
     }

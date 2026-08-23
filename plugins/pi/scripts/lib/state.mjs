@@ -10,6 +10,7 @@ const PLUGIN_DATA_ENV = "CLAUDE_PLUGIN_DATA";
 const FALLBACK_STATE_ROOT_DIR = path.join(os.tmpdir(), "pi-companion");
 const STATE_FILE_NAME = "state.json";
 const JOBS_DIR_NAME = "jobs";
+const WATCHERS_DIR_NAME = "watchers";
 const MAX_JOBS = 50;
 
 export function nowIso() {
@@ -51,8 +52,16 @@ export function resolveJobsDir(cwd) {
   return path.join(resolveStateDir(cwd), JOBS_DIR_NAME);
 }
 
+export function resolveWatchersDir(cwd) {
+  return path.join(resolveStateDir(cwd), WATCHERS_DIR_NAME);
+}
+
 export function ensureStateDir(cwd) {
   fs.mkdirSync(resolveJobsDir(cwd), { recursive: true });
+}
+
+function ensureWatchersDir(cwd) {
+  fs.mkdirSync(resolveWatchersDir(cwd), { recursive: true });
 }
 
 export function loadState(cwd) {
@@ -156,6 +165,16 @@ export function listJobs(cwd) {
   return loadState(cwd).jobs;
 }
 
+export function removeJob(cwd, jobId) {
+  let removed = null;
+  updateState(cwd, (state) => {
+    removed = state.jobs.find((job) => job.id === jobId) ?? null;
+    state.jobs = state.jobs.filter((job) => job.id !== jobId);
+  });
+  removeFileIfExists(resolveWatcherFile(cwd, jobId));
+  return removed;
+}
+
 export function setConfig(cwd, key, value) {
   return updateState(cwd, (state) => {
     state.config = {
@@ -194,4 +213,43 @@ export function resolveJobLogFile(cwd, jobId) {
 export function resolveJobFile(cwd, jobId) {
   ensureStateDir(cwd);
   return path.join(resolveJobsDir(cwd), `${jobId}.json`);
+}
+
+export function resolveWatcherFile(cwd, jobId) {
+  ensureWatchersDir(cwd);
+  return path.join(resolveWatchersDir(cwd), `${jobId}.json`);
+}
+
+export function writeWatcherFile(cwd, jobId, payload) {
+  const watcherFile = resolveWatcherFile(cwd, jobId);
+  const temporaryFile = `${watcherFile}.${process.pid}.tmp`;
+  fs.writeFileSync(temporaryFile, `${JSON.stringify(payload, null, 2)}\n`, { encoding: "utf8", mode: 0o600 });
+  fs.renameSync(temporaryFile, watcherFile);
+  return watcherFile;
+}
+
+export function readWatcherFile(cwd, jobId) {
+  const watcherFile = resolveWatcherFile(cwd, jobId);
+  if (!fs.existsSync(watcherFile)) return null;
+  try {
+    return JSON.parse(fs.readFileSync(watcherFile, "utf8"));
+  } catch {
+    return null;
+  }
+}
+
+export function listWatchers(cwd) {
+  const watchersDir = resolveWatchersDir(cwd);
+  if (!fs.existsSync(watchersDir)) return [];
+  return fs.readdirSync(watchersDir, { withFileTypes: true })
+    .filter((entry) => entry.isFile() && entry.name.endsWith(".json"))
+    .map((entry) => {
+      try {
+        return JSON.parse(fs.readFileSync(path.join(watchersDir, entry.name), "utf8"));
+      } catch {
+        return null;
+      }
+    })
+    .filter(Boolean)
+    .sort((left, right) => String(right.updatedAt ?? "").localeCompare(String(left.updatedAt ?? "")));
 }

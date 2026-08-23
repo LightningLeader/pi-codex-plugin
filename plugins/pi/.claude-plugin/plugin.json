@@ -1,6 +1,6 @@
 {
   "name": "pi",
-  "version": "0.7.2",
+  "version": "0.8.0",
   "description": "Use the Pi coding agent from Claude Code to review code or delegate tasks.",
   "author": {
     "name": "Agents365-ai"
@@ -8,11 +8,13 @@
   "commands": [
     "./commands/adversarial-review.md",
     "./commands/cancel.md",
+    "./commands/continue.md",
     "./commands/rescue.md",
     "./commands/result.md",
     "./commands/review.md",
     "./commands/setup.md",
     "./commands/status.md",
+    "./commands/ui.md",
     "./commands/parallel-rescue.md"
   ]
 }

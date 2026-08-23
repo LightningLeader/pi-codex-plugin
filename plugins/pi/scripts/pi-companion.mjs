@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { spawn } from "node:child_process";
+import { randomBytes } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -45,6 +46,7 @@ import {
   upsertJob,
   writeJobFile
 } from "./lib/state.mjs";
+import { watchJob } from "./lib/job-watcher.mjs";
 import {
   buildSingleJobSnapshot,
   buildStatusSnapshot,
@@ -83,6 +85,15 @@ import { mergePanelReviews, parseModelList } from "./lib/panel.mjs";
 import { buildModelChain, describeFallback, runWithModelFallback } from "./lib/fallback.mjs";
 import { buildRacerLabels, buildRaceWorktreePath } from "./lib/race.mjs";
 import { mergeShardReviews, splitFilesIntoShards } from "./lib/shard.mjs";
+import { localControlAccessDenialCode } from "./lib/control-connection.mjs";
+import {
+  readControlDescriptor,
+  readGlobalControlDescriptor,
+  removeControlDescriptorIfOwned,
+  resolveControlDescriptorFile,
+  resolveGlobalControlDescriptorFile,
+  startControlServer
+} from "./lib/control-server.mjs";
 
 const ROOT_DIR = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
 const REVIEW_SCHEMA = path.join(ROOT_DIR, "schemas", "review-output.schema.json");
@@ -111,11 +122,324 @@ function printUsage() {
       "  node scripts/pi-companion.mjs review [--base <ref>] [--scope <auto|working-tree|branch>] [--incremental] [--model <model>|--models <m1,m2,...>] [--shards <N>] [--out-file <path>]",
       "  node scripts/pi-companion.mjs adversarial-review [--base <ref>] [--scope <auto|working-tree|branch>] [--incremental] [--model <model>|--models <m1,m2,...>] [--shards <N>] [--out-file <path>] [focus text]",
       "  node scripts/pi-companion.mjs task [--background] [--write] [--resume-last|--resume|--fresh] [--model <model>|--race <m1,m2,...>] [--effort <off|minimal|low|medium|high|xhigh|max>] [--out-file <path>] [prompt]",
+      "  node scripts/pi-companion.mjs continue [--background] [--job <job-id>] [--out-file <path>] [prompt]",
       "  node scripts/pi-companion.mjs status [job-id] [--all] [--json]",
+      "  node scripts/pi-companion.mjs watch <job-id> [--timeout-ms <ms>] [--poll-interval-ms <ms>] [--json]",
       "  node scripts/pi-companion.mjs result [job-id] [--json] [--out-file <path>]",
-      "  node scripts/pi-companion.mjs cancel [job-id] [--json]"
+      "  node scripts/pi-companion.mjs cancel [job-id] [--json]",
+      "  node scripts/pi-companion.mjs ui [--background|--stop|--status] [--host 127.0.0.1] [--port 43120]"
     ].join("\n")
   );
+}
+
+function isProcessRunning(pid) {
+  if (!Number.isInteger(Number(pid)) || Number(pid) <= 0) {
+    return false;
+  }
+  try {
+    process.kill(Number(pid), 0);
+    return true;
+  } catch (error) {
+    return error?.code === "EPERM";
+  }
+}
+
+function renderControlDescriptor(descriptor) {
+  const url = `http://${descriptor.host}:${descriptor.port}/?token=${encodeURIComponent(descriptor.token)}`;
+  return [
+    "# Pi Control Center",
+    "",
+    `Status: running (pid ${descriptor.pid})`,
+    `Workspace: ${descriptor.workspaceRoot}`,
+    `Open: ${url}`,
+    "",
+    "The server is bound to the local machine. Keep the token private."
+  ].join("\n") + "\n";
+}
+
+async function enqueueTaskInControlCenter(descriptor, request) {
+  const endpoint = `http://${descriptor.host}:${descriptor.port}/api/tasks`;
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${descriptor.token}`,
+      "content-type": "application/json"
+    },
+    body: JSON.stringify(request),
+    signal: AbortSignal.timeout(3000)
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = new Error(payload.error ?? `Pi Control Center returned HTTP ${response.status}.`);
+    error.controlCenterReached = true;
+    error.status = response.status;
+    throw error;
+  }
+  return payload;
+}
+
+async function enqueueContinueInControlCenter(descriptor, request) {
+  const endpoint = `http://${descriptor.host}:${descriptor.port}/api/continue`;
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${descriptor.token}`,
+      "content-type": "application/json"
+    },
+    body: JSON.stringify(request),
+    signal: AbortSignal.timeout(3000)
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = new Error(payload.error ?? `Pi Control Center returned HTTP ${response.status}.`);
+    error.controlCenterReached = true;
+    error.status = response.status;
+    throw error;
+  }
+  return payload;
+}
+
+async function controlCenterJson(descriptor, pathname, options = {}) {
+  const response = await fetch(`http://${descriptor.host}:${descriptor.port}${pathname}`, {
+    ...options,
+    headers: {
+      authorization: `Bearer ${descriptor.token}`,
+      ...(options.body ? { "content-type": "application/json" } : {}),
+      ...(options.headers ?? {})
+    },
+    signal: options.signal ?? AbortSignal.timeout(3000)
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = new Error(payload.error ?? `Pi Control Center returned HTTP ${response.status}.`);
+    error.controlCenterReached = true;
+    error.status = response.status;
+    throw error;
+  }
+  return payload;
+}
+
+function legacyContinuationSession(overview, reference, workspaceRoot) {
+  const sessions = (overview.sessions ?? [])
+    .filter((session) => resolveWorkspaceRoot(session.cwd) === workspaceRoot)
+    .filter((session) => Array.isArray(session.jobIds) && session.jobIds.length > 0);
+  if (reference) {
+    return sessions.find((session) =>
+      session.id === reference ||
+      session.piSessionId === reference ||
+      session.jobId === reference ||
+      session.jobIds.includes(reference)
+    ) ?? null;
+  }
+  return sessions
+    .filter((session) => session.rpcProcessStatus === "running" && session.status === "idle" && !session.isStreaming)
+    .sort((left, right) => String(right.updatedAt ?? "").localeCompare(String(left.updatedAt ?? "")))[0] ?? null;
+}
+
+async function enqueueLegacyContinuation(descriptor, { workspaceRoot, jobId, prompt }) {
+  const overview = await controlCenterJson(descriptor, "/api/overview");
+  const session = legacyContinuationSession(overview, jobId, workspaceRoot);
+  if (!session) {
+    throw new Error(
+      `Cannot continue ${jobId ?? "the latest task"}: the legacy Control Center has no matching live Control Session. ` +
+      "No new RPC process was started."
+    );
+  }
+  if (session.rpcProcessStatus !== "running") {
+    throw new Error(`Cannot continue ${jobId ?? session.id}: its original Pi RPC process is unavailable.`);
+  }
+  if (session.status !== "idle" || session.isStreaming) {
+    throw new Error(`Cannot continue ${jobId ?? session.id}: Control Session ${session.id} is currently ${session.phase || session.status}.`);
+  }
+  await controlCenterJson(descriptor, `/api/sessions/${encodeURIComponent(session.id)}/prompt`, {
+    method: "POST",
+    body: JSON.stringify({ message: prompt })
+  });
+  return {
+    controlSessionId: session.id,
+    baselineSequence: Number(session.eventSequence ?? 0),
+    piSessionId: session.piSessionId ?? null,
+    rpcPid: session.rpcPid ?? null,
+    compatibilityMode: "legacy-control-session"
+  };
+}
+
+function lastAssistantText(messages) {
+  const assistant = [...(messages ?? [])].reverse().find((message) => message?.role === "assistant");
+  if (!assistant || !Array.isArray(assistant.content)) return "";
+  return assistant.content
+    .filter((block) => block?.type === "text" && typeof block.text === "string")
+    .map((block) => block.text)
+    .join("");
+}
+
+async function waitForLegacyContinuationAndOutput(descriptor, continuation, { json = false, outFile = null } = {}) {
+  const deadline = Date.now() + 24 * 60 * 60 * 1000;
+  while (Date.now() < deadline) {
+    const overview = await controlCenterJson(descriptor, "/api/overview");
+    const session = (overview.sessions ?? []).find((candidate) => candidate.id === continuation.controlSessionId);
+    if (!session) throw new Error(`Control Session ${continuation.controlSessionId} disappeared while continuing.`);
+    if (["failed", "disconnected", "closed"].includes(session.status)) {
+      throw new Error(`Control Session ${session.id} became ${session.status} while continuing.`);
+    }
+    const advanced = Number(session.eventSequence ?? 0) > continuation.baselineSequence;
+    if (advanced && session.status === "idle" && !session.isStreaming) {
+      const history = await controlCenterJson(
+        descriptor,
+        `/api/sessions/${encodeURIComponent(session.id)}/messages`
+      );
+      const rawOutput = lastAssistantText(history.messages);
+      const rendered = rawOutput ? `${rawOutput.replace(/\n+$/, "")}\n` : "Pi continuation completed without a final assistant message.\n";
+      const payload = { ...continuation, status: "completed", rawOutput };
+      if (outFile && !json) {
+        fs.writeFileSync(outFile, rendered);
+        process.stdout.write(renderOutFileSummary({ summary: "Pi live continuation completed." }, outFile));
+      } else {
+        outputCommandResult(payload, rendered, json);
+      }
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, DEFAULT_STATUS_POLL_INTERVAL_MS));
+  }
+  throw new Error(`Timed out waiting for Control Session ${continuation.controlSessionId}.`);
+}
+
+async function controlDescriptorReachable(descriptor) {
+  if (!descriptor?.host || !descriptor?.port || !descriptor?.token) return false;
+  try {
+    const response = await fetch(`http://${descriptor.host}:${descriptor.port}/api/overview`, {
+      headers: { authorization: `Bearer ${descriptor.token}` },
+      signal: AbortSignal.timeout(2000)
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+async function waitForControlDescriptor(cwd, pid, timeoutMs = 5000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const descriptor = readControlDescriptor(cwd);
+    if (descriptor?.pid === pid) {
+      return descriptor;
+    }
+    if (!isProcessRunning(pid)) {
+      break;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  return null;
+}
+
+async function handleControlUi(argv) {
+  const { options } = parseCommandInput(argv, {
+    valueOptions: ["cwd", "host", "port", "token"],
+    booleanOptions: ["json", "background", "stop", "status", "allow-remote"]
+  });
+  const cwd = resolveCommandCwd(options);
+  const workspaceRoot = resolveWorkspaceRoot(cwd);
+  const descriptorCandidates = [readGlobalControlDescriptor(workspaceRoot), readControlDescriptor(workspaceRoot)]
+    .filter(Boolean)
+    .filter((descriptor, index, all) => all.findIndex((candidate) =>
+      candidate.host === descriptor.host && candidate.port === descriptor.port && candidate.token === descriptor.token
+    ) === index);
+  let existing = null;
+  for (const descriptor of descriptorCandidates) {
+    if (await controlDescriptorReachable(descriptor)) {
+      existing = descriptor;
+      break;
+    }
+  }
+  const existingRunning = Boolean(existing);
+
+  if (options.status) {
+    if (!existingRunning) {
+      const payload = { status: "stopped", workspaceRoot };
+      outputCommandResult(payload, `Pi Control Center is not running for ${workspaceRoot}.\n`, options.json);
+      return;
+    }
+    outputCommandResult(existing, renderControlDescriptor(existing), options.json);
+    return;
+  }
+
+  if (options.stop) {
+    if (!existingRunning) {
+      outputCommandResult(
+        { status: "stopped", workspaceRoot },
+        `Pi Control Center is already stopped for ${workspaceRoot}.\n`,
+        options.json
+      );
+      return;
+    }
+    const result = terminateProcessTree(existing.pid);
+    const descriptorFile = resolveControlDescriptorFile(workspaceRoot);
+    removeControlDescriptorIfOwned(descriptorFile, existing.pid);
+    removeControlDescriptorIfOwned(resolveGlobalControlDescriptorFile(workspaceRoot), existing.pid);
+    outputCommandResult(
+      { status: "stopped", pid: existing.pid, signalled: result.delivered },
+      `Stopped Pi Control Center (pid ${existing.pid}).\n`,
+      options.json
+    );
+    return;
+  }
+
+  if (existingRunning) {
+    outputCommandResult(existing, renderControlDescriptor(existing), options.json);
+    return;
+  }
+
+  const host = options.host ?? "127.0.0.1";
+  const port = Number(options.port ?? 43120);
+  const token = options.token ?? randomBytes(24).toString("hex");
+  if (options.background) {
+    const child = spawn(
+      process.execPath,
+      [
+        process.argv[1],
+        "ui",
+        "--cwd",
+        workspaceRoot,
+        "--host",
+        host,
+        "--port",
+        String(port),
+        "--token",
+        token,
+        ...(options["allow-remote"] ? ["--allow-remote"] : [])
+      ],
+      {
+        cwd: workspaceRoot,
+        env: process.env,
+        detached: true,
+        stdio: "ignore",
+        windowsHide: true
+      }
+    );
+    child.unref();
+    const descriptor = await waitForControlDescriptor(workspaceRoot, child.pid);
+    if (!descriptor) {
+      throw new Error("Pi Control Center did not start. Run the ui command in the foreground for diagnostics.");
+    }
+    outputCommandResult(descriptor, renderControlDescriptor(descriptor), options.json);
+    return;
+  }
+
+  const control = await startControlServer({
+    cwd: workspaceRoot,
+    host,
+    port,
+    token,
+    allowRemote: Boolean(options["allow-remote"])
+  });
+  outputCommandResult(control.descriptor, renderControlDescriptor(control.descriptor), options.json);
+  const shutdown = async () => {
+    await control.close().catch(() => {});
+    process.exit(0);
+  };
+  process.once("SIGINT", shutdown);
+  process.once("SIGTERM", shutdown);
+  await new Promise(() => {});
 }
 
 function outputResult(value, asJson) {
@@ -942,6 +1266,25 @@ function renderQueuedTaskLaunch(payload) {
   return `${payload.title} started in the background as ${payload.jobId}. Check /pi:status ${payload.jobId} for progress.\n`;
 }
 
+async function waitForManagedJobAndOutput(cwd, payload, { json = false, outFile = null } = {}) {
+  const snapshot = await waitForSingleJobSnapshot(cwd, payload.jobId, {
+    timeoutMs: 24 * 60 * 60 * 1000,
+    pollIntervalMs: DEFAULT_STATUS_POLL_INTERVAL_MS
+  });
+  if (snapshot.waitTimedOut) {
+    throw new Error(`Timed out waiting for control-center task ${payload.jobId}.`);
+  }
+  const storedJob = readStoredJob(snapshot.workspaceRoot, payload.jobId);
+  const rendered = renderStoredJobResult(snapshot.job, storedJob);
+  const resultPayload = { job: snapshot.job, storedJob };
+  if (outFile && !json) {
+    fs.writeFileSync(outFile, rendered);
+    process.stdout.write(renderOutFileSummary({ summary: snapshot.job.summary }, outFile));
+  } else {
+    outputCommandResult(resultPayload, rendered, json);
+  }
+}
+
 function getJobKindLabel(kind, jobClass) {
   if (kind === "adversarial-review") {
     return "adversarial-review";
@@ -1279,10 +1622,53 @@ async function handleTask(argv) {
     raceModels
   });
 
+  if (!raceModels) {
+    ensurePiAvailable(cwd);
+    requireTaskRequest(prompt, resumeLast);
+    const descriptors = [readGlobalControlDescriptor(workspaceRoot), readControlDescriptor(workspaceRoot)]
+      .filter(Boolean)
+      .filter((descriptor, index, all) => all.findIndex((candidate) =>
+        candidate.host === descriptor.host && candidate.port === descriptor.port && candidate.token === descriptor.token
+      ) === index);
+    if (descriptors.length > 0) {
+      let resumeSession = null;
+      if (resumeLast) {
+        resumeSession = resolveLatestTrackedTaskSession(workspaceRoot);
+        if (!resumeSession) {
+          throw new Error("No previous Pi task session was found for this repository.");
+        }
+      }
+      for (const descriptor of descriptors) {
+        let payload;
+        try {
+          payload = await enqueueTaskInControlCenter(descriptor, {
+            cwd,
+            workspaceRoot,
+            originSessionId: getCurrentClaudeSessionId(),
+            model,
+            effort,
+            prompt,
+            write,
+            resumeSession
+          });
+        } catch (error) {
+          if (error?.controlCenterReached && ![401, 403].includes(error.status)) throw error;
+          continue;
+        }
+        if (options.background) {
+          outputCommandResult(payload, renderQueuedTaskLaunch(payload), options.json);
+          return;
+        }
+
+        await waitForManagedJobAndOutput(cwd, payload, { json: options.json, outFile });
+        return;
+      }
+    }
+  }
+
   if (options.background) {
     ensurePiAvailable(cwd);
     requireTaskRequest(prompt, resumeLast);
-
     const job = buildTaskJob(workspaceRoot, taskMetadata, write);
     const request = buildTaskRequest({
       cwd,
@@ -1315,6 +1701,96 @@ async function handleTask(argv) {
         onProgress: progress
       }),
     { json: options.json, outFile }
+  );
+}
+
+async function handleContinue(argv) {
+  const { options, positionals } = parseCommandInput(argv, {
+    valueOptions: ["cwd", "job", "prompt-file", "out-file"],
+    booleanOptions: ["json", "background"]
+  });
+  const cwd = resolveCommandCwd(options);
+  const workspaceRoot = resolveCommandWorkspace(options);
+  const outFile = options["out-file"] ? path.resolve(cwd, options["out-file"]) : null;
+  const promptParts = [...positionals];
+  let reference = options.job ? String(options.job).trim() : null;
+  if (!reference && /^(?:task|session)-[a-z0-9-]+$/i.test(promptParts[0] ?? "")) {
+    reference = promptParts.shift();
+  }
+  const prompt = readTaskPrompt(cwd, options, promptParts).trim();
+  if (!prompt) {
+    throw new Error("Provide a continuation prompt.");
+  }
+
+  const descriptors = [readGlobalControlDescriptor(workspaceRoot), readControlDescriptor(workspaceRoot)]
+    .filter(Boolean)
+    .filter((descriptor, index, all) => all.findIndex((candidate) =>
+      candidate.host === descriptor.host && candidate.port === descriptor.port && candidate.token === descriptor.token
+    ) === index);
+  if (descriptors.length === 0) {
+    throw new Error(
+      "Cannot continue in the original Pi RPC process: no Pi Control Center is registered. Start /pi:ui first; live continuation never falls back to a new process."
+    );
+  }
+
+  let unsupportedError = null;
+  let unsupportedDescriptor = null;
+  for (const descriptor of descriptors) {
+    let payload;
+    try {
+      payload = await enqueueContinueInControlCenter(descriptor, {
+        cwd,
+        workspaceRoot,
+        originSessionId: getCurrentClaudeSessionId(),
+        jobId: reference,
+        prompt
+      });
+    } catch (error) {
+      if (error?.controlCenterReached && [401, 403].includes(error.status)) continue;
+      if (error?.controlCenterReached && error.status === 404 && /Unknown API endpoint/i.test(error.message)) {
+        unsupportedError = error;
+        unsupportedDescriptor = descriptor;
+        continue;
+      }
+      if (error?.controlCenterReached) throw error;
+      const accessDenialCode = localControlAccessDenialCode(error);
+      if (accessDenialCode) {
+        throw new Error(
+          `Cannot access the registered Pi Control Center because local loopback access was denied (${accessDenialCode}). ` +
+          "Retry pi:continue with sandbox escalation/approval. The original RPC process was not changed and no new RPC process was started.",
+          { cause: error }
+        );
+      }
+      continue;
+    }
+    if (options.background) {
+      outputCommandResult(payload, renderQueuedTaskLaunch(payload), options.json);
+      return;
+    }
+    await waitForManagedJobAndOutput(cwd, payload, { json: options.json, outFile });
+    return;
+  }
+
+  if (unsupportedError) {
+    if (options.background) {
+      throw new Error(
+        "The running Pi Control Center only supports foreground compatibility continuation. " +
+        "Retry without --background or manually end and restart the Control Center; no new RPC process was started."
+      );
+    }
+    const continuation = await enqueueLegacyContinuation(unsupportedDescriptor, {
+      workspaceRoot,
+      jobId: reference,
+      prompt
+    });
+    await waitForLegacyContinuationAndOutput(unsupportedDescriptor, continuation, {
+      json: options.json,
+      outFile
+    });
+    return;
+  }
+  throw new Error(
+    "Cannot continue in the original Pi RPC process: no registered Pi Control Center is reachable. No new RPC process was started."
   );
 }
 
@@ -1387,6 +1863,31 @@ async function handleStatus(argv) {
 
   const report = buildStatusSnapshot(cwd, { all: options.all });
   outputResult(renderStatusPayload(report, options.json), options.json);
+}
+
+function renderWatchReport(watcher) {
+  if (watcher.watcherStatus === "watching") {
+    const timeout = watcher.waitTimedOut ? " Waiting timed out; the Pi job is still running." : "";
+    return `Watching Pi job ${watcher.jobId} (${watcher.jobStatus}).${timeout}\n`;
+  }
+  const resultHint = watcher.resultAvailable ? ` Run \`pi-companion.mjs result ${watcher.jobId}\` to read its result.` : "";
+  return `Pi job ${watcher.jobId} finished with status ${watcher.jobStatus}.${resultHint}\n`;
+}
+
+async function handleWatch(argv) {
+  const { options, positionals } = parseCommandInput(argv, {
+    valueOptions: ["cwd", "timeout-ms", "poll-interval-ms"],
+    booleanOptions: ["json"]
+  });
+  const cwd = resolveCommandCwd(options);
+  const reference = positionals[0] ?? "";
+  if (!reference) throw new Error("`watch` requires a job id.");
+  const watcher = await watchJob(cwd, reference, {
+    timeoutMs: options["timeout-ms"],
+    pollIntervalMs: options["poll-interval-ms"]
+  });
+
+  outputCommandResult(watcher, renderWatchReport(watcher), options.json);
 }
 
 function handleResult(argv) {
@@ -1529,11 +2030,17 @@ async function main() {
     case "task":
       await handleTask(argv);
       break;
+    case "continue":
+      await handleContinue(argv);
+      break;
     case "task-worker":
       await handleTaskWorker(argv);
       break;
     case "status":
       await handleStatus(argv);
+      break;
+    case "watch":
+      await handleWatch(argv);
       break;
     case "result":
       await handleResult(argv);
@@ -1543,6 +2050,9 @@ async function main() {
       break;
     case "cancel":
       await handleCancel(argv);
+      break;
+    case "ui":
+      await handleControlUi(argv);
       break;
     default:
       throw new Error(`Unknown subcommand: ${subcommand}`);

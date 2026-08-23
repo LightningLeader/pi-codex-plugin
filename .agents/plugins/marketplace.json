@@ -1,0 +1,20 @@
+{
+  "name": "agents365-pi",
+  "interface": {
+    "displayName": "Agents365 Pi"
+  },
+  "plugins": [
+    {
+      "name": "pi",
+      "source": {
+        "source": "local",
+        "path": "./plugins/pi"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}

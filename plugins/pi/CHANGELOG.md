@@ -1,5 +1,92 @@
 # Changelog
 
+## 0.8.0
+
+- Package the repository as a native Codex plugin with
+  `plugins/pi/.codex-plugin/plugin.json` and namespaced skills for review, delegation,
+  live continuation, job control, setup, and the RPC dashboard. Retain legacy
+  `codex-prompts/` only for older clients.
+- Add Pi Control Center, a local-only web dashboard backed by a persistent RPC
+  process manager. It streams assistant text/thinking deltas, tool calls and
+  incremental tool output; supports prompts, steering, follow-ups, aborts, and
+  extension UI responses; routes new background task jobs through the daemon;
+  and lists pre-existing legacy plugin jobs with their logs.
+- Add `pi-companion.mjs ui` and `/pi:ui` / Codex `pi-ui` wrappers with
+  `--background`, `--status`, and `--stop`. Access is protected by a random
+  local token and remote binding requires explicit opt-in.
+- Extend `PiRpcClient` with conversation control and history helpers, and add
+  control-server integration coverage.
+- Create missing session working directories on demand; make session startup
+  return immediately; add session/job deletion; reduce stream-driven sidebar
+  refreshes; and render each thinking block as its own collapsible card.
+- Keep conversations inside a dedicated scrolling viewport, color-code RPC
+  event categories, localize session states, and offer full-collapse or
+  latest-three-line previews for thinking and tool cards.
+- Split session history and message composition into framed chat panels; stop
+  auto-follow as soon as the user scrolls upward; add an explicit jump-to-latest
+  control; and hide low-level turn boundaries and `agent_settled` events.
+- Fix collapsed three-line previews by keeping them outside native `details`
+  content; preserve rendered session DOM and card state while switching; keep
+  prompt/agent/tool history labels consistent with live events; and rebuild
+  settled sessions from full RPC history before attaching at an exact sequence.
+- Surface streaming `toolcall_*` argument generation before tool execution,
+  including write/edit progress without rendering entire file payloads; return
+  switched sessions to their latest output; add global expand/collapse control;
+  and safely render common Markdown, including GFM tables, in completed
+  assistant messages.
+- Show the Control Center PID and each managed Pi RPC process PID, live/exited
+  state, exit code, or terminating signal in the dashboard session metadata.
+- Refine the dashboard visual hierarchy with improved Chinese font fallbacks,
+  higher-contrast message colors, clearer status indicators, richer active
+  session states, and more polished panels, controls, and scrollbars.
+- Increase secondary text contrast across session metadata, timestamps,
+  placeholders, empty states, and collapsed previews for easier reading.
+- Raise the overall text contrast another step and version the stylesheet URL
+  so browser or proxy caches cannot hide visual updates.
+- Prevent long event labels such as `compaction_start` from overlapping event
+  payloads by widening the label column and allowing safe label wrapping.
+- Label Pi's `compacting` phase as “压缩中” instead of the less precise
+  “整理中”.
+- Replace the legacy plugin-task log-only view with a rich, read-only Pi
+  session mirror that renders prompts, thinking, assistant Markdown, tool
+  calls/results, and compaction summaries using the control-session UI; keep
+  the worker log available in a collapsible diagnostics panel.
+- Register the newest live dashboard as a user-local global control center.
+  Codex-launched `task` commands now try their workspace dashboard and then the
+  global dashboard using an authenticated health check, regardless of PID
+  namespace; both foreground and background tasks retain their original cwd
+  while appearing as fully interactive control sessions. Foreground callers
+  still wait for and receive the final task output.
+- Clamp long session titles without shrinking status chips or action buttons,
+  and expose the full title as a hover tooltip.
+- Prevent duplicate live prompts, thinking blocks, and tool events after an
+  SSE reconnect by honoring `Last-Event-ID` on the server, deduplicating event
+  sequences in the browser, and ignoring buffered events from stale streams.
+- Merge control sessions and legacy task records into one chronological
+  navigation list. Managed task jobs are represented by their interactive
+  session only, while direct-task history remains available as a read-only
+  session record without a duplicate entry.
+- Give idle sessions a cyan status chip while keeping completed records blue,
+  so waiting RPC sessions are visually distinct from finished history.
+- Use orange for active running/responding/tool phases, preserving cyan for
+  idle sessions and blue for completed records as three distinct state hues.
+- Replace the global collapse dropdown with a single “全部折叠” checkbox:
+  checking it closes every card and unchecking it expands every card.
+- Remove per-session terminate buttons from the navigation sidebar. Add hover
+  explanations to the header actions for aborting the current turn, ending
+  the RPC process while retaining history, and deleting the whole session.
+- Add strict live continuation through `/pi:continue`, Codex `/pi-continue`,
+  and the `continue` CLI subcommand. Each continuation becomes a new tracked
+  job in the original Control Session while reusing its exact Pi RPC process;
+  unavailable or busy sessions fail without spawning a replacement process.
+- Add Codex supervised-background delegation through `$pi:rescue --supervised`
+  and `$pi:watch`. A lightweight Codex subagent waits on the new deterministic
+  `watch` CLI command while the main conversation remains free. Watcher state is
+  stored independently from job state and surfaced in Pi Control Center.
+- Make supervised watcher polling configurable with `--poll-interval-ms` on
+  both `$pi:watch` and `$pi:rescue --supervised`, and change the default
+  interval from two seconds to ten seconds.
+
 ## 0.7.2
 
 - Fix install failure on Claude Code >= 2.1 (PR #26, thanks @Heelc). The

@@ -12,11 +12,13 @@ Full behavior, flags, and usage examples: see [README.md](README.md) (English) /
 - **Claude Code**: install as a plugin (`/plugin marketplace add Agents365-ai/pi-plugin-cc`,
   `/plugin install pi@agents365-pi`) and use the `/pi:*` slash commands documented in
   `plugins/pi/commands/*.md`.
-- **Codex CLI**: install the bundled custom prompts from `codex-prompts/` into `~/.codex/prompts/`
-  (see README.md § "Use from Codex"); invoke as `/pi-review`, `/pi-rescue`, etc.
+- **Codex CLI**: install the repository marketplace's `pi` plugin (see README.md §
+  "Use from Codex"). Its commands are skills such as `$pi:review`, `$pi:rescue`, and
+  `$pi:continue`. `codex-prompts/` is retained only for
+  compatibility with older Codex clients that still support custom prompts.
 - **Any other agent**: call `node plugins/pi/scripts/pi-companion.mjs <subcommand> [args]`
   directly. Run `node plugins/pi/scripts/pi-companion.mjs help` for the full command list
-  (`review`, `adversarial-review`, `task`, `status`, `result`, `cancel`, `setup`). Pass `--json`
+  (`review`, `adversarial-review`, `task`, `continue`, `status`, `watch`, `result`, `cancel`, `setup`). Pass `--json`
   for machine-readable output.
 
 ## Working on this repo
@@ -26,8 +28,9 @@ Full behavior, flags, and usage examples: see [README.md](README.md) (English) /
   under `plugins/pi/scripts/`.
 - Source of truth for CLI behavior is `plugins/pi/scripts/pi-companion.mjs` and
   `plugins/pi/scripts/lib/*.mjs`; `plugins/pi/commands/*.md` are the Claude Code slash-command
-  prompt wrappers around that same CLI.
-- Version/changelog conventions: `plugins/pi/CHANGELOG.md`, versions in `package.json` and
-  `plugins/pi/.claude-plugin/plugin.json` stay in sync (`npm run check-version`).
+  wrappers and `skills/*/SKILL.md` are the Codex plugin wrappers around that same CLI.
+- Version/changelog conventions: `plugins/pi/CHANGELOG.md`, versions in `package.json`,
+  `plugins/pi/.codex-plugin/plugin.json`, and `plugins/pi/.claude-plugin/plugin.json` stay in sync
+  (`npm run check-version`).
 - Licensed under Apache-2.0, forked from [`codex-plugin-cc`](https://github.com/openai/codex-plugin-cc)
   — see `NOTICE`.

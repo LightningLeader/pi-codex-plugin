@@ -353,11 +353,46 @@ export class PiRpcClient {
     });
   }
 
+  async steer(message, images = undefined) {
+    return this.request({
+      type: "steer",
+      message,
+      ...(Array.isArray(images) && images.length > 0 ? { images } : {})
+    });
+  }
+
+  async followUp(message, images = undefined) {
+    return this.request({
+      type: "follow_up",
+      message,
+      ...(Array.isArray(images) && images.length > 0 ? { images } : {})
+    });
+  }
+
   async abort() {
     return this.request({ type: "abort" });
   }
 
   async getLastAssistantText() {
     return this.request({ type: "get_last_assistant_text" });
+  }
+
+  async getMessages() {
+    return this.request({ type: "get_messages" });
+  }
+
+  async newSession(parentSession = undefined) {
+    return this.request({
+      type: "new_session",
+      ...(parentSession ? { parentSession } : {})
+    });
+  }
+
+  async switchSession(sessionPath) {
+    return this.request({ type: "switch_session", sessionPath });
+  }
+
+  async fork(entryId) {
+    return this.request({ type: "fork", entryId });
   }
 }
