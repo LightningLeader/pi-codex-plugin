@@ -3,7 +3,6 @@ import os from "node:os";
 import path from "node:path";
 import process from "node:process";
 
-import { readJsonFile } from "./fs.mjs";
 import { PiRpcClient } from "./pi-rpc.mjs";
 import { binaryAvailable } from "./process.mjs";
 
@@ -11,7 +10,7 @@ const TASK_THREAD_PREFIX = "Pi Companion Task";
 const DEFAULT_CONTINUE_PROMPT =
   "Continue from the current session state. Pick the next highest-value step and follow through until the task is resolved.";
 
-const REVIEW_TOOLS = ["read", "grep", "find", "ls"];
+const READ_ONLY_TOOLS = ["read", "grep", "find", "ls"];
 
 const VALID_THINKING_LEVELS = new Set(["off", "minimal", "low", "medium", "high", "xhigh", "max"]);
 
@@ -311,7 +310,7 @@ function buildSpawnArgs(options = {}) {
   }
 
   if (options.sandbox === "read-only") {
-    args.push("--tools", REVIEW_TOOLS.join(","));
+    args.push("--tools", READ_ONLY_TOOLS.join(","));
   }
 
   if (options.disableExtensions) {
@@ -708,44 +707,6 @@ export async function interruptAppServerTurn(_cwd, _options = {}) {
   };
 }
 
-export async function runAppServerReview(cwd, options = {}) {
-  const availability = getPiAvailability(cwd);
-  if (!availability.available) {
-    throw new Error(availability.detail);
-  }
-
-  return withPiRpc(
-    cwd,
-    {
-      env: options.env,
-      noSession: true,
-      sandbox: "read-only",
-      disableExtensions: true,
-      disablePromptTemplates: true,
-      model: options.model
-    },
-    async (client) => {
-      emitProgress(options.onProgress, "Starting Pi review session.", "starting");
-      const state = await runPiAgentRun(client, options.prompt, {
-        onProgress: options.onProgress,
-        effort: options.effort,
-        sessionName: options.threadName
-      });
-
-      return {
-        status: buildResultStatus(state),
-        piSessionId: state.sessionId,
-        piSessionFile: state.sessionFile,
-        reviewText: state.lastAgentMessage,
-        reasoningSummary: state.reasoningSummary,
-        turn: state.finalTurn,
-        error: state.error,
-        stderr: cleanPiStderr(client.stderr)
-      };
-    }
-  );
-}
-
 export async function runAppServerTurn(cwd, options = {}) {
   const availability = getPiAvailability(cwd);
   if (!availability.available) {
@@ -798,41 +759,6 @@ export async function runAppServerTurn(cwd, options = {}) {
 
 export function buildPersistentTaskThreadName(prompt) {
   return buildTaskThreadName(prompt);
-}
-
-export function parseStructuredOutput(rawOutput, fallback = {}) {
-  if (!rawOutput) {
-    return {
-      parsed: null,
-      parseError: fallback.failureMessage ?? "Pi did not return a final structured message.",
-      rawOutput: rawOutput ?? "",
-      ...fallback
-    };
-  }
-
-  const trimmed = rawOutput.trim();
-  const fenced = trimmed.match(/```json\s*([\s\S]*?)```/i) ?? trimmed.match(/```\s*([\s\S]*?)```/);
-  const candidate = fenced ? fenced[1].trim() : trimmed;
-
-  try {
-    return {
-      parsed: JSON.parse(candidate),
-      parseError: null,
-      rawOutput,
-      ...fallback
-    };
-  } catch (error) {
-    return {
-      parsed: null,
-      parseError: error.message,
-      rawOutput,
-      ...fallback
-    };
-  }
-}
-
-export function readOutputSchema(schemaPath) {
-  return readJsonFile(schemaPath);
 }
 
 export { DEFAULT_CONTINUE_PROMPT, TASK_THREAD_PREFIX };

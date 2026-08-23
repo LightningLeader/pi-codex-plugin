@@ -4,8 +4,20 @@ import {
   buildModelChain,
   describeFallback,
   modelLabel,
+  parseModelList,
   runWithModelFallback
 } from "../plugins/pi-codex/scripts/lib/fallback.mjs";
+
+describe("parseModelList", () => {
+  it("splits comma- or whitespace-separated models and removes duplicates", () => {
+    assert.deepEqual(parseModelList("a,b a  c"), ["a", "b", "c"]);
+  });
+
+  it("returns an empty list for an empty value", () => {
+    assert.deepEqual(parseModelList(null), []);
+    assert.deepEqual(parseModelList(""), []);
+  });
+});
 
 // ---------------------------------------------------------------------------
 // buildModelChain

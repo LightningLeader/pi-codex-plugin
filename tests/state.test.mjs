@@ -95,8 +95,8 @@ describe("generateJobId", () => {
   });
 
   it("uses the provided prefix", () => {
-    const id = generateJobId("review");
-    assert.ok(id.startsWith("review-"));
+    const id = generateJobId("task");
+    assert.ok(id.startsWith("task-"));
   });
 
   it("contains two hyphens separating prefix, timestamp, and random", () => {

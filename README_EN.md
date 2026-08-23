@@ -5,7 +5,7 @@
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
 [![Codex Plugin](https://img.shields.io/badge/Codex-plugin-111827)](https://github.com/LightningLeader/pi-codex-plugin)
 
-`pi-codex-plugin` is a Codex-only plugin that delegates code reviews, investigations, and implementation work to the [Pi coding agent](https://github.com/earendil-works/pi). It supports foreground work, tracked background jobs, parallel delegation, and live continuation through a local RPC Control Center.
+`pi-codex-plugin` is a Codex-only plugin that delegates investigations and implementation work to the [Pi coding agent](https://github.com/earendil-works/pi). It supports foreground work, tracked background jobs, parallel delegation, and live continuation through a local RPC Control Center.
 
 ## Requirements
 
@@ -32,8 +32,6 @@ Start a new Codex thread after installation so the skills are loaded. Run `$pi-c
 | Skill | Purpose |
 | --- | --- |
 | `$pi-codex:setup` | Check the local Pi installation and configuration |
-| `$pi-codex:review` | Review the current Git working tree or branch |
-| `$pi-codex:adversarial-review` | Challenge architecture, assumptions, and approach |
 | `$pi-codex:rescue` | Delegate an investigation or implementation task |
 | `$pi-codex:continue` | Continue a task in its original live Pi RPC process |
 | `$pi-codex:parallel-rescue` | Fan out explicitly independent tasks through pi-subagents |
@@ -46,14 +44,13 @@ Start a new Codex thread after installation so the skills are loaded. Run `$pi-c
 Examples:
 
 ```text
-$pi-codex:review --scope working-tree --wait
-$pi-codex:adversarial-review Focus on the persistence design
+$pi-codex:rescue Investigate performance bottlenecks in the current implementation
 $pi-codex:rescue --write --background Implement the requested parser
 $pi-codex:status task-...
 $pi-codex:result task-...
 ```
 
-The review commands accept options including `--base`, `--scope`, `--model`, `--models`, `--effort`, `--shards`, `--incremental`, and `--out-file`. Rescue supports read-only or `--write` tasks, foreground/background execution, model selection, effort settings, and model races.
+Rescue supports read-only or `--write` tasks, foreground/background execution, model selection, effort settings, output files, and model races.
 
 ## Background jobs and live continuation
 

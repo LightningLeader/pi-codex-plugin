@@ -9,6 +9,9 @@
 - Move runtime state to a private, platform-standard `pi-codex-plugin` data
   directory with `PI_CODEX_DATA_DIR` as an explicit override.
 - Update documentation and runtime guidance to use `$pi-codex:<skill>` names.
+- Remove the `review` and `adversarial-review` skills together with their CLI
+  commands, prompts, structured-output schema, incremental cache, panel, and
+  sharding implementation.
 
 ## 0.8.0
 

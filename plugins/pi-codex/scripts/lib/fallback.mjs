@@ -2,6 +2,22 @@
 // exhausted auto-retry), retry the same request with the next model in the
 // configured fallback chain instead of failing the whole job.
 
+export function parseModelList(raw) {
+  if (!raw) {
+    return [];
+  }
+  const models = [];
+  const seen = new Set();
+  for (const part of String(raw).split(/[\s,]+/)) {
+    const model = part.trim();
+    if (model && !seen.has(model)) {
+      seen.add(model);
+      models.push(model);
+    }
+  }
+  return models;
+}
+
 export function buildModelChain(primaryModel, fallbackModels = []) {
   const chain = [primaryModel ?? null];
   for (const model of fallbackModels) {

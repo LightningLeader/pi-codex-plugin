@@ -3,7 +3,7 @@
   "version": "0.8.0",
   "private": true,
   "type": "module",
-  "description": "Use the Pi coding agent from Codex to review code and delegate tasks.",
+  "description": "Delegate investigation and implementation tasks from Codex to the Pi coding agent.",
   "license": "Apache-2.0",
   "engines": {
     "node": ">=18.18.0"

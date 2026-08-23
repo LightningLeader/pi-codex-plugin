@@ -9,13 +9,11 @@ const PLUGIN_ROOT = path.join(REPO_ROOT, "plugins", "pi-codex");
 const MANIFEST_PATH = path.join(PLUGIN_ROOT, ".codex-plugin", "plugin.json");
 const MARKETPLACE_PATH = path.join(REPO_ROOT, ".agents", "plugins", "marketplace.json");
 const PUBLIC_SKILLS = [
-  "adversarial-review",
   "cancel",
   "continue",
   "parallel-rescue",
   "rescue",
   "result",
-  "review",
   "setup",
   "status",
   "ui",
@@ -41,7 +39,15 @@ describe("Codex plugin skill layout", () => {
       "plugins/pi-codex/.claude-plugin",
       "plugins/pi-codex/agents",
       "plugins/pi-codex/commands",
-      "plugins/pi-codex/hooks"
+      "plugins/pi-codex/hooks",
+      "plugins/pi-codex/skills/review",
+      "plugins/pi-codex/skills/adversarial-review",
+      "plugins/pi-codex/prompts/review.md",
+      "plugins/pi-codex/prompts/adversarial-review.md",
+      "plugins/pi-codex/schemas/review-output.schema.json",
+      "plugins/pi-codex/scripts/lib/review-cache.mjs",
+      "plugins/pi-codex/scripts/lib/panel.mjs",
+      "plugins/pi-codex/scripts/lib/shard.mjs"
     ];
 
     for (const relativePath of forbiddenPaths) {

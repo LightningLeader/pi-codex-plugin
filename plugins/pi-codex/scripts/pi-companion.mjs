@@ -16,27 +16,17 @@ import {
   getPiModelsStatus,
   getPiSubagentsStatus,
   getSessionRuntimeStatus,
-  parseStructuredOutput,
-  readOutputSchema,
-  runAppServerReview,
   runAppServerTurn
 } from "./lib/pi.mjs";
 import { readStdinIfPiped } from "./lib/fs.mjs";
 import {
   addRaceWorktree,
   captureWorktreePatch,
-  collectReviewContext,
   ensureGitRepository,
-  getCurrentBranch,
-  getHeadSha,
   getWorkingTreeState,
-  isAncestor,
-  removeRaceWorktree,
-  resolveReviewTarget
+  removeRaceWorktree
 } from "./lib/git.mjs";
-import { readReviewCache, writeReviewCache } from "./lib/review-cache.mjs";
 import { binaryAvailable, runCommand, terminateProcessTree } from "./lib/process.mjs";
-import { loadPromptTemplate, interpolateTemplate } from "./lib/prompts.mjs";
 import {
   generateJobId,
   listJobs,
@@ -65,24 +55,17 @@ import {
 } from "./lib/tracked-jobs.mjs";
 import { resolveWorkspaceRoot } from "./lib/workspace.mjs";
 import {
-  normalizeReviewResultData,
   renderOutFileSummary,
-  renderPanelReviewResult,
   renderRaceResult,
-  renderReviewResult,
-  renderShardedReviewResult,
   renderStoredJobResult,
   renderCancelReport,
   renderJobStatusReport,
   renderSetupReport,
   renderStatusReport,
-  renderTaskResult,
-  validateReviewResultShape
+  renderTaskResult
 } from "./lib/render.mjs";
-import { mergePanelReviews, parseModelList } from "./lib/panel.mjs";
-import { buildModelChain, describeFallback, runWithModelFallback } from "./lib/fallback.mjs";
+import { buildModelChain, describeFallback, parseModelList, runWithModelFallback } from "./lib/fallback.mjs";
 import { buildRacerLabels, buildRaceWorktreePath } from "./lib/race.mjs";
-import { mergeShardReviews, splitFilesIntoShards } from "./lib/shard.mjs";
 import { localControlAccessDenialCode } from "./lib/control-connection.mjs";
 import {
   readControlDescriptor,
@@ -94,7 +77,6 @@ import {
 } from "./lib/control-server.mjs";
 
 const ROOT_DIR = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
-const REVIEW_SCHEMA = path.join(ROOT_DIR, "schemas", "review-output.schema.json");
 const DEFAULT_STATUS_WAIT_TIMEOUT_MS = 240000;
 const DEFAULT_STATUS_POLL_INTERVAL_MS = 2000;
 const VALID_REASONING_EFFORTS = new Set(["off", "minimal", "low", "medium", "high", "xhigh", "max"]);
@@ -105,8 +87,6 @@ const EFFORT_ALIASES = new Map([["none", "off"]]);
 // invocation or via these env vars. With both unset, pi picks the model it is
 // configured for (any provider pi supports: DeepSeek, OpenAI, Anthropic,
 // Google, Ollama, LM Studio, or any OpenAI-compatible endpoint).
-const ENV_REVIEW_MODEL = process.env.PI_PLUGIN_REVIEW_MODEL?.trim() || null;
-const ENV_ADVERSARIAL_REVIEW_MODEL = process.env.PI_PLUGIN_ADVERSARIAL_REVIEW_MODEL?.trim() || null;
 // Optional comma-separated fallback chain: when a Pi run fails, the same
 // request is retried with the next model in this list.
 const ENV_FALLBACK_MODELS = parseModelList(process.env.PI_PLUGIN_FALLBACK_MODELS);
@@ -116,8 +96,6 @@ function printUsage() {
     [
       "Usage:",
       "  node scripts/pi-companion.mjs setup [--json]",
-      "  node scripts/pi-companion.mjs review [--base <ref>] [--scope <auto|working-tree|branch>] [--incremental] [--model <model>|--models <m1,m2,...>] [--shards <N>] [--out-file <path>]",
-      "  node scripts/pi-companion.mjs adversarial-review [--base <ref>] [--scope <auto|working-tree|branch>] [--incremental] [--model <model>|--models <m1,m2,...>] [--shards <N>] [--out-file <path>] [focus text]",
       "  node scripts/pi-companion.mjs task [--background] [--write] [--resume-last|--resume|--fresh] [--model <model>|--race <m1,m2,...>] [--effort <off|minimal|low|medium|high|xhigh|max>] [--out-file <path>] [prompt]",
       "  node scripts/pi-companion.mjs continue [--background] [--job <job-id>] [--out-file <path>] [prompt]",
       "  node scripts/pi-companion.mjs status [job-id] [--all] [--json]",
@@ -459,19 +437,6 @@ function normalizeRequestedModel(model) {
   return normalized || null;
 }
 
-// --shards 1 or a non-numeric value means "no sharding" — falls back to the
-// normal single review.
-function normalizeShardCount(raw) {
-  if (raw == null) {
-    return null;
-  }
-  const parsed = Number.parseInt(String(raw).trim(), 10);
-  if (!Number.isFinite(parsed) || parsed < 2) {
-    return null;
-  }
-  return parsed;
-}
-
 function normalizeReasoningEffort(effort) {
   if (effort == null) {
     return null;
@@ -592,31 +557,10 @@ async function handleSetup(argv) {
   outputResult(options.json ? finalReport : renderSetupReport(finalReport), options.json);
 }
 
-function buildReviewPrompt(templateName, context, focusText) {
-  const template = loadPromptTemplate(ROOT_DIR, templateName);
-  const schema = JSON.stringify(readOutputSchema(REVIEW_SCHEMA), null, 2);
-  return interpolateTemplate(template, {
-    REVIEW_KIND: templateName === "adversarial-review" ? "Adversarial Review" : "Review",
-    TARGET_LABEL: context.target.label,
-    USER_FOCUS: focusText || "No extra focus provided.",
-    REVIEW_COLLECTION_GUIDANCE: context.collectionGuidance,
-    REVIEW_INPUT: context.content,
-    REVIEW_SCHEMA: schema
-  });
-}
-
 function ensurePiAvailable(cwd) {
   const availability = getPiAvailability(cwd);
   if (!availability.available) {
     throw new Error(`${availability.detail} Then rerun \`$pi-codex:setup\`.`);
-  }
-}
-
-function validateRegularReviewRequest(_target, focusText) {
-  if (focusText.trim()) {
-    throw new Error(
-      `\`$pi-codex:review\` does not accept custom focus text. Retry with \`$pi-codex:adversarial-review ${focusText.trim()}\` to ask for focused review.`
-    );
   }
 }
 
@@ -687,107 +631,6 @@ function resolveLatestTrackedTaskSession(cwd, options = {}) {
   return null;
 }
 
-function prepareReviewRun(request) {
-  ensurePiAvailable(request.cwd);
-  ensureGitRepository(request.cwd);
-
-  const target = resolveReviewTarget(request.cwd, {
-    base: request.base,
-    scope: request.scope
-  });
-  const focusText = request.focusText?.trim() ?? "";
-  const reviewName = request.reviewName ?? "Review";
-  const isAdversarial = reviewName === "Adversarial Review";
-  const templateName = isAdversarial ? "adversarial-review" : "review";
-
-  const context = collectReviewContext(request.cwd, target);
-  const prompt = buildReviewPrompt(templateName, context, focusText);
-
-  return { target, reviewName, isAdversarial, context, prompt };
-}
-
-async function executeReviewRun(request) {
-  return finishSingleReview(request, prepareReviewRun(request));
-}
-
-// Runs the single-review model call given an already-built prep (target,
-// context, prompt). Split out from executeReviewRun so the sharded-review
-// path can fall back to a plain single review without recomputing the diff
-// context it already gathered when it decided there weren't enough files to
-// shard.
-async function finishSingleReview(request, prep) {
-  const { target, reviewName, isAdversarial, context, prompt } = prep;
-  // request.model: explicit --model in the skill invocation. Highest priority.
-  // ENV_*_REVIEW_MODEL: opt-in pin via env var.
-  // null: defer to pi's own configured default model.
-  const envDefault = isAdversarial ? ENV_ADVERSARIAL_REVIEW_MODEL : ENV_REVIEW_MODEL;
-  const model = request.model ?? envDefault ?? null;
-
-  const { result, attempts } = await runWithModelFallback(
-    buildModelChain(model, ENV_FALLBACK_MODELS),
-    (attemptModel) =>
-      runAppServerReview(context.repoRoot, {
-        prompt,
-        model: attemptModel,
-        effort: request.effort,
-        threadName: `Pi ${reviewName}`,
-        onProgress: request.onProgress
-      }),
-    request.onProgress
-  );
-  const fallbackNote = describeFallback(attempts);
-
-  const parsed = parseStructuredOutput(result.reviewText, {
-    status: result.status,
-    failureMessage: result.error?.message ?? result.stderr
-  });
-
-  const payload = {
-    review: reviewName,
-    target,
-    piSessionId: result.piSessionId,
-    piSessionFile: result.piSessionFile,
-    context: {
-      repoRoot: context.repoRoot,
-      branch: context.branch,
-      summary: context.summary
-    },
-    pi: {
-      status: result.status,
-      stderr: result.stderr,
-      stdout: result.reviewText,
-      reasoning: result.reasoningSummary
-    },
-    result: parsed.parsed,
-    rawOutput: parsed.rawOutput,
-    parseError: parsed.parseError,
-    reasoningSummary: result.reasoningSummary,
-    ...(fallbackNote ? { modelAttempts: attempts } : {})
-  };
-
-  let rendered = renderReviewResult(parsed, {
-    reviewLabel: reviewName,
-    targetLabel: context.target.label,
-    reasoningSummary: result.reasoningSummary
-  });
-  if (fallbackNote) {
-    rendered = `${rendered}\n${fallbackNote}\n`;
-  }
-
-  return {
-    exitStatus: result.status,
-    piSessionId: result.piSessionId,
-    piSessionFile: result.piSessionFile,
-    payload,
-    rendered,
-    summary:
-      parsed.parsed?.summary ?? parsed.parseError ?? firstMeaningfulLine(result.reviewText, `${reviewName} finished.`),
-    jobTitle: `Pi ${reviewName}`,
-    jobClass: "review",
-    targetLabel: context.target.label
-  };
-}
-
 function prefixModelProgress(onProgress, model) {
   if (!onProgress) {
     return null;
@@ -805,202 +648,6 @@ function prefixModelProgress(onProgress, model) {
       piSessionId: null,
       piSessionFile: null
     });
-  };
-}
-
-async function runPanelMemberReview(prep, request, model) {
-  try {
-    const result = await runAppServerReview(prep.context.repoRoot, {
-      prompt: prep.prompt,
-      model,
-      effort: request.effort,
-      threadName: `Pi ${prep.reviewName} [${model}]`,
-      onProgress: prefixModelProgress(request.onProgress, model)
-    });
-    const parsed = parseStructuredOutput(result.reviewText, {
-      status: result.status,
-      failureMessage: result.error?.message ?? result.stderr
-    });
-
-    let normalized = null;
-    let failure = null;
-    if (result.status !== 0) {
-      failure = result.error?.message?.trim() || "Pi run failed.";
-    } else if (!parsed.parsed) {
-      failure = `invalid structured output: ${parsed.parseError}`;
-    } else {
-      const shapeError = validateReviewResultShape(parsed.parsed);
-      if (shapeError) {
-        failure = `unexpected review shape: ${shapeError}`;
-      } else {
-        normalized = normalizeReviewResultData(parsed.parsed);
-      }
-    }
-
-    return { model, normalized, failure, piSessionId: result.piSessionId ?? null };
-  } catch (error) {
-    return {
-      model,
-      normalized: null,
-      failure: error instanceof Error ? error.message : String(error),
-      piSessionId: null
-    };
-  }
-}
-
-async function executePanelReviewRun(request) {
-  const prep = prepareReviewRun(request);
-  const { target, reviewName, context } = prep;
-
-  const runs = await Promise.all(request.models.map((model) => runPanelMemberReview(prep, request, model)));
-  const merged = mergePanelReviews(runs.map((run) => ({ model: run.model, parsed: run.normalized })));
-
-  const members = runs.map((run) => ({
-    model: run.model,
-    ok: Boolean(run.normalized),
-    findingCount: run.normalized ? run.normalized.findings.length : null,
-    summary: run.normalized?.summary ?? null,
-    failure: run.failure,
-    piSessionId: run.piSessionId
-  }));
-  const okCount = members.filter((member) => member.ok).length;
-  const consensusCount = merged.findings.filter((finding) => finding.foundBy.length >= 2).length;
-  const singleCount = merged.findings.length - consensusCount;
-
-  const payload = {
-    review: `Panel ${reviewName}`,
-    target,
-    models: members,
-    context: {
-      repoRoot: context.repoRoot,
-      branch: context.branch,
-      summary: context.summary
-    },
-    result: merged
-  };
-
-  return {
-    exitStatus: okCount > 0 ? 0 : 1,
-    piSessionId: null,
-    piSessionFile: null,
-    payload,
-    rendered: renderPanelReviewResult(
-      { ...merged, members },
-      { reviewLabel: reviewName, targetLabel: context.target.label }
-    ),
-    summary: `Panel ${reviewName.toLowerCase()}: ${okCount}/${members.length} models ok, ${consensusCount} consensus + ${singleCount} single-model finding${merged.findings.length === 1 ? "" : "s"}`,
-    jobTitle: `Pi Panel ${reviewName}`,
-    jobClass: "review",
-    targetLabel: context.target.label
-  };
-}
-
-async function runShardReview(request, prep, shardFiles, shardIndex, shardTotal) {
-  const templateName = prep.isAdversarial ? "adversarial-review" : "review";
-  const label = `shard ${shardIndex + 1}/${shardTotal}`;
-  try {
-    const scopedContext = collectReviewContext(request.cwd, prep.target, { files: shardFiles });
-    const prompt = buildReviewPrompt(templateName, scopedContext, request.focusText?.trim() ?? "");
-    const envDefault = prep.isAdversarial ? ENV_ADVERSARIAL_REVIEW_MODEL : ENV_REVIEW_MODEL;
-    const model = request.model ?? envDefault ?? null;
-
-    const { result } = await runWithModelFallback(
-      buildModelChain(model, ENV_FALLBACK_MODELS),
-      (attemptModel) =>
-        runAppServerReview(scopedContext.repoRoot, {
-          prompt,
-          model: attemptModel,
-          effort: request.effort,
-          threadName: `Pi ${prep.reviewName} [${label}]`,
-          onProgress: prefixModelProgress(request.onProgress, label)
-        }),
-      request.onProgress
-    );
-    const parsed = parseStructuredOutput(result.reviewText, {
-      status: result.status,
-      failureMessage: result.error?.message ?? result.stderr
-    });
-
-    let normalized = null;
-    let failure = null;
-    if (result.status !== 0) {
-      failure = result.error?.message?.trim() || "Pi run failed.";
-    } else if (!parsed.parsed) {
-      failure = `invalid structured output: ${parsed.parseError}`;
-    } else {
-      const shapeError = validateReviewResultShape(parsed.parsed);
-      if (shapeError) {
-        failure = `unexpected review shape: ${shapeError}`;
-      } else {
-        normalized = normalizeReviewResultData(parsed.parsed);
-      }
-    }
-
-    return { files: shardFiles, normalized, failure, piSessionId: result.piSessionId ?? null };
-  } catch (error) {
-    return {
-      files: shardFiles,
-      normalized: null,
-      failure: error instanceof Error ? error.message : String(error),
-      piSessionId: null
-    };
-  }
-}
-
-// Sharded review: split the changed files across N parallel review jobs,
-// each scoped to its own disjoint file subset via collectReviewContext's
-// `files` filter, then merge the findings. Falls back to a plain single
-// review when there is only 0-1 changed file, since there is nothing to
-// usefully split.
-async function executeShardedReviewRun(request) {
-  const prep = prepareReviewRun(request);
-  const { reviewName, context } = prep;
-
-  if (context.changedFiles.length <= 1) {
-    return finishSingleReview(request, prep);
-  }
-
-  const shardFileGroups = splitFilesIntoShards(context.changedFiles, request.shards);
-  const runs = await Promise.all(
-    shardFileGroups.map((shardFiles, index) => runShardReview(request, prep, shardFiles, index, shardFileGroups.length))
-  );
-  const merged = mergeShardReviews(runs.map((run) => run.normalized));
-
-  const shards = runs.map((run, index) => ({
-    index,
-    files: run.files,
-    ok: Boolean(run.normalized),
-    findingCount: run.normalized ? run.normalized.findings.length : null,
-    failure: run.failure,
-    piSessionId: run.piSessionId
-  }));
-  const okCount = shards.filter((shard) => shard.ok).length;
-
-  const payload = {
-    review: `Sharded ${reviewName}`,
-    target: prep.target,
-    shards,
-    context: {
-      repoRoot: context.repoRoot,
-      branch: context.branch,
-      summary: context.summary
-    },
-    result: merged
-  };
-
-  return {
-    exitStatus: okCount > 0 ? 0 : 1,
-    piSessionId: null,
-    piSessionFile: null,
-    payload,
-    rendered: renderShardedReviewResult(
-      { ...merged, shards },
-      { reviewLabel: reviewName, targetLabel: context.target.label }
-    ),
-    summary: `Sharded ${reviewName.toLowerCase()} across ${shards.length} jobs: ${okCount}/${shards.length} ok, ${merged.findings.length} finding${merged.findings.length === 1 ? "" : "s"}`,
-    jobTitle: `Pi Sharded ${reviewName}`,
-    jobClass: "review",
-    targetLabel: context.target.label
   };
 }
 
@@ -1207,14 +854,6 @@ async function executeTaskRun(request) {
   };
 }
 
-function buildReviewJobMetadata(reviewName, target) {
-  return {
-    kind: reviewName === "Adversarial Review" ? "adversarial-review" : "review",
-    title: reviewName === "Review" ? "Pi Review" : `Pi ${reviewName}`,
-    summary: `${reviewName} ${target.label}`
-  };
-}
-
 function buildTaskRunMetadata({ prompt, resumeLast = false, raceModels = null }) {
   if (Array.isArray(raceModels) && raceModels.length >= 2) {
     return {
@@ -1254,10 +893,10 @@ async function waitForManagedJobAndOutput(cwd, payload, { json = false, outFile 
 }
 
 function getJobKindLabel(kind, jobClass) {
-  if (kind === "adversarial-review") {
-    return "adversarial-review";
+  if (jobClass === "task" || kind === "task") {
+    return "rescue";
   }
-  return jobClass === "review" ? "review" : "rescue";
+  return "job";
 }
 
 function createCompanionJob({ prefix, kind, title, workspaceRoot, jobClass, summary, write = false }) {
@@ -1333,7 +972,7 @@ async function runForegroundCommand(job, runner, options = {}) {
   const execution = await runTrackedJob(job, () => runner(progress), { logFile });
   if (options.outFile && !options.json) {
     // Write the full output to a file and relay only a short summary, so a
-    // large review/task does not consume the caller's context.
+    // large task does not consume the caller's context.
     fs.writeFileSync(options.outFile, execution.rendered);
     process.stdout.write(renderOutFileSummary(execution, options.outFile));
   } else {
@@ -1384,173 +1023,6 @@ function enqueueBackgroundTask(cwd, job, request) {
     },
     logFile
   };
-}
-
-// After a successful review (incremental or full), record HEAD as the new
-// per-branch marker so the next --incremental review starts from here.
-// Detached HEAD has no branch to key the cache on, so it is skipped.
-function maybeUpdateReviewCache(workspaceRoot, cwd, execution) {
-  if (execution?.exitStatus !== 0) {
-    return;
-  }
-  const branch = getCurrentBranch(cwd);
-  if (branch !== "HEAD") {
-    writeReviewCache(workspaceRoot, branch, getHeadSha(cwd));
-  }
-}
-
-async function handleReviewCommand(argv, config) {
-  const { options, positionals } = parseCommandInput(argv, {
-    valueOptions: ["base", "scope", "model", "models", "shards", "effort", "cwd", "out-file"],
-    booleanOptions: ["json", "incremental"],
-    aliasMap: {
-      m: "model"
-    }
-  });
-
-  const cwd = resolveCommandCwd(options);
-  const workspaceRoot = resolveCommandWorkspace(options);
-  const focusText = positionals.join(" ").trim();
-  const outFile = options["out-file"] ? path.resolve(cwd, options["out-file"]) : null;
-
-  const incremental = Boolean(options.incremental);
-  if (incremental && options.base) {
-    throw new Error("Choose either --incremental or --base.");
-  }
-
-  let reviewBase = options.base;
-  let reviewScope = options.scope;
-
-  if (incremental) {
-    const branch = getCurrentBranch(cwd);
-    const headSha = getHeadSha(cwd);
-    const cachedSha = readReviewCache(workspaceRoot, branch);
-    if (cachedSha && cachedSha === headSha) {
-      process.stdout.write(
-        `No new commits to review since the last review on ${branch} (${headSha.slice(0, 9)}).\n`
-      );
-      return;
-    }
-    if (cachedSha && isAncestor(cwd, cachedSha) && cachedSha !== headSha) {
-      // The incremental delta: only the commits since the cached marker.
-      reviewBase = cachedSha;
-      reviewScope = "branch";
-    } else {
-      // No cache yet, or the cached sha is no longer an ancestor of HEAD
-      // (rebase, history rewrite, or a branch switch) — fall back to a full review.
-      process.stderr.write(`No valid review cache for ${branch}; running a full review.\n`);
-    }
-  }
-
-  const target = resolveReviewTarget(cwd, {
-    base: reviewBase,
-    scope: reviewScope
-  });
-
-  config.validateRequest?.(target, focusText);
-
-  const panelModels = parseModelList(options.models);
-  if (panelModels.length > 0 && options.model) {
-    throw new Error("Choose either --model <one> or --models <m1,m2,...>, not both.");
-  }
-  const shardCount = normalizeShardCount(options.shards);
-  if (shardCount && panelModels.length > 0) {
-    throw new Error("Choose either --shards <N> or --models <m1,m2,...>, not both.");
-  }
-  // A single --models entry is just a model pin; the panel needs 2+.
-  const singleModel = normalizeRequestedModel(options.model) ?? (panelModels.length === 1 ? panelModels[0] : null);
-  const effort = normalizeReasoningEffort(options.effort);
-
-  const metadata = buildReviewJobMetadata(config.reviewName, target);
-
-  if (panelModels.length >= 2) {
-    const job = createCompanionJob({
-      prefix: "review",
-      kind: metadata.kind,
-      title: `Pi Panel ${config.reviewName}`,
-      workspaceRoot,
-      jobClass: "review",
-      summary: `Panel (${panelModels.length} models) ${metadata.summary}`
-    });
-    const execution = await runForegroundCommand(
-      job,
-      (progress) =>
-        executePanelReviewRun({
-          cwd,
-          base: reviewBase,
-          scope: reviewScope,
-          models: panelModels,
-          effort,
-          focusText,
-          reviewName: config.reviewName,
-          onProgress: progress
-        }),
-      { json: options.json, outFile }
-    );
-    maybeUpdateReviewCache(workspaceRoot, cwd, execution);
-    return;
-  }
-
-  if (shardCount) {
-    const job = createCompanionJob({
-      prefix: "review",
-      kind: metadata.kind,
-      title: `Pi Sharded ${config.reviewName}`,
-      workspaceRoot,
-      jobClass: "review",
-      summary: `Sharded (${shardCount} jobs) ${metadata.summary}`
-    });
-    const execution = await runForegroundCommand(
-      job,
-      (progress) =>
-        executeShardedReviewRun({
-          cwd,
-          base: reviewBase,
-          scope: reviewScope,
-          model: singleModel,
-          shards: shardCount,
-          effort,
-          focusText,
-          reviewName: config.reviewName,
-          onProgress: progress
-        }),
-      { json: options.json, outFile }
-    );
-    maybeUpdateReviewCache(workspaceRoot, cwd, execution);
-    return;
-  }
-
-  const job = createCompanionJob({
-    prefix: "review",
-    kind: metadata.kind,
-    title: metadata.title,
-    workspaceRoot,
-    jobClass: "review",
-    summary: metadata.summary
-  });
-  const execution = await runForegroundCommand(
-    job,
-    (progress) =>
-      executeReviewRun({
-        cwd,
-        base: reviewBase,
-        scope: reviewScope,
-        model: singleModel,
-        effort,
-        focusText,
-        reviewName: config.reviewName,
-        onProgress: progress
-      }),
-    { json: options.json, outFile }
-  );
-  maybeUpdateReviewCache(workspaceRoot, cwd, execution);
-}
-
-async function handleReview(argv) {
-  return handleReviewCommand(argv, {
-    reviewName: "Review",
-    validateRequest: validateRegularReviewRequest
-  });
 }
 
 async function handleTask(argv) {
@@ -1951,14 +1423,6 @@ async function main() {
   switch (subcommand) {
     case "setup":
       await handleSetup(argv);
-      break;
-    case "review":
-      await handleReview(argv);
-      break;
-    case "adversarial-review":
-      await handleReviewCommand(argv, {
-        reviewName: "Adversarial Review"
-      });
       break;
     case "task":
       await handleTask(argv);

@@ -5,11 +5,10 @@
 [![许可证：Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
 [![Codex 插件](https://img.shields.io/badge/Codex-plugin-111827)](https://github.com/LightningLeader/pi-codex-plugin)
 
-`pi-codex-plugin` 是一个只面向 Codex 的插件，用于把代码评审、问题调查和实现任务交给 [Pi 编码 Agent](https://github.com/earendil-works/pi)。它支持前台任务、可追踪的后台任务、并行分发，以及通过本地 RPC 控制中心在原来的 Pi 进程中继续工作。
+`pi-codex-plugin` 是一个只面向 Codex 的插件，用于把问题调查和实现任务交给 [Pi 编码 Agent](https://github.com/earendil-works/pi)。它支持前台任务、可追踪的后台任务、并行分发，以及通过本地 RPC 控制中心在原来的 Pi 进程中继续工作。
 
 ## 功能特点
 
-- 使用 Pi 评审当前工作区或分支中的代码变更
 - 委派只读调查或可修改文件的实现任务
 - 在后台运行、查看、监控、取消任务并获取结果
 - 通过 `pi-subagents` 并行处理多个相互独立的任务
@@ -43,8 +42,6 @@ codex plugin add pi-codex@lightningleader
 | Skill | 用途 |
 | --- | --- |
 | `$pi-codex:setup` | 检查本地 Pi 安装和配置 |
-| `$pi-codex:review` | 评审当前 Git 工作区或分支 |
-| `$pi-codex:adversarial-review` | 从架构、假设和实现路线等角度进行质疑式评审 |
 | `$pi-codex:rescue` | 委派调查或实现任务 |
 | `$pi-codex:continue` | 在原来的在线 Pi RPC 进程中继续任务 |
 | `$pi-codex:parallel-rescue` | 通过 pi-subagents 并行执行明确独立的任务 |
@@ -57,14 +54,13 @@ codex plugin add pi-codex@lightningleader
 ## 使用示例
 
 ```text
-$pi-codex:review --scope working-tree --wait
-$pi-codex:adversarial-review 重点检查持久化设计
+$pi-codex:rescue 调查当前实现中的性能瓶颈
 $pi-codex:rescue --write --background 实现所需的解析器
 $pi-codex:status task-...
 $pi-codex:result task-...
 ```
 
-评审命令支持 `--base`、`--scope`、`--model`、`--models`、`--effort`、`--shards`、`--incremental` 和 `--out-file` 等选项。Rescue 支持只读或 `--write` 任务、前台或后台运行、模型选择、推理强度和多模型竞速。
+Rescue 支持只读或 `--write` 任务、前台或后台运行、模型选择、推理强度、结果输出文件和多模型竞速。
 
 ## 后台任务
 

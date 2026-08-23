@@ -28,17 +28,8 @@ function getJobTypeLabel(job) {
   if (typeof job.kindLabel === "string" && job.kindLabel) {
     return job.kindLabel;
   }
-  if (job.kind === "adversarial-review") {
-    return "adversarial-review";
-  }
-  if (job.jobClass === "review") {
-    return "review";
-  }
   if (job.jobClass === "task") {
     return "rescue";
-  }
-  if (job.kind === "review") {
-    return "review";
   }
   if (job.kind === "task") {
     return "rescue";
@@ -52,7 +43,7 @@ function stripLogPrefix(line) {
 
 function isProgressBlockTitle(line) {
   return (
-    ["Final output", "Assistant message", "Reasoning summary", "Review output"].includes(line) ||
+    ["Final output", "Assistant message", "Reasoning summary"].includes(line) ||
     /^Subagent .+ message$/.test(line) ||
     /^Subagent .+ reasoning summary$/.test(line)
   );
@@ -125,9 +116,6 @@ function inferLegacyJobPhase(job, progressPreview = []) {
     if (line.startsWith("starting pi") || line.startsWith("session ready") || line.startsWith("turn started")) {
       return "starting";
     }
-    if (line.startsWith("reviewing") || line.startsWith("review started")) {
-      return "reviewing";
-    }
     if (line.startsWith("searching:") || line.startsWith("calling ") || line.startsWith("running tool:")) {
       return "investigating";
     }
@@ -135,11 +123,7 @@ function inferLegacyJobPhase(job, progressPreview = []) {
       return "investigating";
     }
     if (line.startsWith("running command:")) {
-      return looksLikeVerificationCommand(line)
-        ? "verifying"
-        : job.jobClass === "review"
-          ? "reviewing"
-          : "investigating";
+      return looksLikeVerificationCommand(line) ? "verifying" : "investigating";
     }
     if (line.startsWith("command completed:")) {
       return looksLikeVerificationCommand(line) ? "verifying" : "running";
@@ -155,7 +139,7 @@ function inferLegacyJobPhase(job, progressPreview = []) {
     }
   }
 
-  return job.jobClass === "review" ? "reviewing" : "running";
+  return "running";
 }
 
 export function enrichJob(job, options = {}) {
