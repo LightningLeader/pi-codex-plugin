@@ -11,7 +11,7 @@ This repository contains the Codex-only `pi-codex` plugin. Do not add host integ
 - `plugins/pi-codex/prompts/`: runtime prompt templates used by the skills
 - `tests/`: Node.js test suite
 
-Keep skill paths relative to the installed plugin root. User-facing invocations use `$pi-codex:<skill>`. Pi model providers are independent of the Codex host integration, so provider-specific model identifiers are allowed.
+Keep skill paths relative to the installed plugin root. User-facing invocations use `$pi-codex:<skill>`. The `$pi-codex:task` command uses Pi's configured default model and must not expose `--model` or `--race` options.
 
 ## Checks
 

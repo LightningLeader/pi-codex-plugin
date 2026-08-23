@@ -1,16 +1,20 @@
 ---
 name: task
-description: "Delegate an investigation or implementation task to the Pi coding agent. Use when the user asks Codex to hand work to Pi, including foreground, background, supervised-background, model, effort, and race modes."
+description: "Delegate an investigation or implementation task to the Pi coding agent. Use when the user asks Codex to hand work to Pi, including foreground, background, supervised-background, and effort modes."
 ---
 
 # Pi Task
 
 Treat the directory containing this `SKILL.md` as `<skill-root>`. Resolve `<plugin-root>` as `<skill-root>/../..`. Do not assume a fixed checkout path.
 
-Run `node <plugin-root>/scripts/pi-companion.mjs task` with the user's task as the prompt.
+Run `node <plugin-root>/scripts/pi-companion.mjs task` with the user's task as the prompt. Translate the user's natural-language execution preferences into CLI options; do not require them to spell out flags.
 
-- Add `--write` for implementation or file-changing work. Omit it for explicitly read-only investigation.
-- Pass through requested `--model`, `--effort`, `--background`, `--race`, `--out-file`, `--fresh`, or legacy resume options.
+- Add `--write` for implementation or file-changing work. Omit it for investigation, explanation, diagnosis, review, or any explicitly read-only request. The runtime default without this flag is read-only.
+- Add `--background` when the user asks to run asynchronously or in the background.
+- Treat requests for supervision, a watcher, or completion notification as supervised background mode even when the user does not name `--supervised`.
+- Translate an explicit request for low, normal, high, or maximum reasoning into the closest supported `--effort` value; otherwise leave Pi's default unchanged.
+- Use `--resume-last` when the user explicitly wants the newest persisted Pi task history for the current repository, but not when they require the exact original live process.
+- Pass through requested `--effort`, `--out-file`, `--fresh`, or legacy resume options.
 - Prefer the `pi-codex:continue` skill when the user wants to reuse the exact original live RPC process. Legacy `--resume-last` starts a replacement RPC from persisted Pi history.
 
 Return Pi's output without paraphrasing. A background launch should return its job ID for later status checks.

@@ -3,7 +3,6 @@
 import { spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
@@ -19,18 +18,10 @@ import {
   runAppServerTurn
 } from "./lib/pi.mjs";
 import { readStdinIfPiped } from "./lib/fs.mjs";
-import {
-  addRaceWorktree,
-  captureWorktreePatch,
-  ensureGitRepository,
-  getWorkingTreeState,
-  removeRaceWorktree
-} from "./lib/git.mjs";
 import { binaryAvailable, runCommand, terminateProcessTree } from "./lib/process.mjs";
 import {
   generateJobId,
   listJobs,
-  resolveJobsDir,
   upsertJob,
   writeJobFile
 } from "./lib/state.mjs";
@@ -56,7 +47,6 @@ import {
 import { resolveWorkspaceRoot } from "./lib/workspace.mjs";
 import {
   renderOutFileSummary,
-  renderRaceResult,
   renderStoredJobResult,
   renderCancelReport,
   renderJobStatusReport,
@@ -65,7 +55,6 @@ import {
   renderTaskResult
 } from "./lib/render.mjs";
 import { buildModelChain, describeFallback, parseModelList, runWithModelFallback } from "./lib/fallback.mjs";
-import { buildRacerLabels, buildRaceWorktreePath } from "./lib/race.mjs";
 import { localControlAccessDenialCode } from "./lib/control-connection.mjs";
 import {
   readControlDescriptor,
@@ -81,14 +70,6 @@ const DEFAULT_STATUS_WAIT_TIMEOUT_MS = 240000;
 const DEFAULT_STATUS_POLL_INTERVAL_MS = 2000;
 const VALID_REASONING_EFFORTS = new Set(["off", "minimal", "low", "medium", "high", "xhigh", "max"]);
 const EFFORT_ALIASES = new Map([["none", "off"]]);
-
-// Model selection is delegated to pi by default. The plugin only forces a
-// specific model when the user pins one explicitly via --model in a skill
-// invocation or via these env vars. With both unset, pi picks the model it is
-// configured for (any provider pi supports: DeepSeek, OpenAI, Anthropic,
-// Google, Ollama, LM Studio, or any OpenAI-compatible endpoint).
-// Optional comma-separated fallback chain: when a Pi run fails, the same
-// request is retried with the next model in this list.
 const ENV_FALLBACK_MODELS = parseModelList(process.env.PI_PLUGIN_FALLBACK_MODELS);
 
 function printUsage() {
@@ -96,7 +77,7 @@ function printUsage() {
     [
       "Usage:",
       "  node scripts/pi-companion.mjs setup [--json]",
-      "  node scripts/pi-companion.mjs task [--background] [--write] [--resume-last|--resume|--fresh] [--model <model>|--race <m1,m2,...>] [--effort <off|minimal|low|medium|high|xhigh|max>] [--out-file <path>] [prompt]",
+      "  node scripts/pi-companion.mjs task [--background] [--write] [--resume-last|--resume|--fresh] [--effort <off|minimal|low|medium|high|xhigh|max>] [--out-file <path>] [prompt]",
       "  node scripts/pi-companion.mjs continue [--background] [--job <job-id>] [--out-file <path>] [prompt]",
       "  node scripts/pi-companion.mjs status [job-id] [--all] [--json]",
       "  node scripts/pi-companion.mjs watch <job-id> [--timeout-ms <ms>] [--poll-interval-ms <ms>] [--json]",
@@ -429,14 +410,6 @@ function outputCommandResult(payload, rendered, asJson) {
   outputResult(asJson ? payload : rendered, asJson);
 }
 
-function normalizeRequestedModel(model) {
-  if (model == null) {
-    return null;
-  }
-  const normalized = String(model).trim();
-  return normalized || null;
-}
-
 function normalizeReasoningEffort(effort) {
   if (effort == null) {
     return null;
@@ -631,148 +604,7 @@ function resolveLatestTrackedTaskSession(cwd, options = {}) {
   return null;
 }
 
-function prefixModelProgress(onProgress, model) {
-  if (!onProgress) {
-    return null;
-  }
-  return (eventOrMessage) => {
-    const event =
-      eventOrMessage && typeof eventOrMessage === "object" && !Array.isArray(eventOrMessage)
-        ? eventOrMessage
-        : { message: String(eventOrMessage ?? "") };
-    onProgress({
-      ...event,
-      message: `[${model}] ${event.message ?? ""}`,
-      // Per-model session ids live in the panel payload; a single job-level
-      // resume pointer would be misleading.
-      piSessionId: null,
-      piSessionFile: null
-    });
-  };
-}
-
-async function runRacer(request, racer, context) {
-  const onProgress = prefixModelProgress(request.onProgress, racer.model);
-  let worktreePath = null;
-  try {
-    let runCwd = request.cwd;
-    if (context.write) {
-      worktreePath = buildRaceWorktreePath(os.tmpdir(), request.jobId ?? `adhoc-${process.pid}`, racer.slug);
-      fs.mkdirSync(path.dirname(worktreePath), { recursive: true });
-      addRaceWorktree(context.repoRoot, worktreePath);
-      onProgress?.({ message: `Racer worktree ready at ${worktreePath}.`, phase: "starting" });
-      runCwd = worktreePath;
-    }
-
-    const result = await runAppServerTurn(runCwd, {
-      prompt: request.prompt,
-      model: racer.model,
-      effort: request.effort,
-      sandbox: context.write ? null : "read-only",
-      onProgress,
-      persistThread: true,
-      threadName: `Pi Race [${racer.model}]`
-    });
-
-    const patch =
-      context.write && result.status === 0 && worktreePath ? captureWorktreePatch(worktreePath) : null;
-
-    return {
-      model: racer.model,
-      slug: racer.slug,
-      ok: result.status === 0,
-      finalMessage: typeof result.finalMessage === "string" ? result.finalMessage : "",
-      failure: result.status === 0 ? null : (result.error?.message ?? result.stderr ?? "Run failed."),
-      piSessionId: result.piSessionId ?? null,
-      patch
-    };
-  } catch (error) {
-    return {
-      model: racer.model,
-      slug: racer.slug,
-      ok: false,
-      finalMessage: "",
-      failure: error instanceof Error ? error.message : String(error),
-      piSessionId: null,
-      patch: null
-    };
-  } finally {
-    if (worktreePath) {
-      try {
-        removeRaceWorktree(context.repoRoot, worktreePath);
-      } catch {
-        // best-effort cleanup; a stale worktree is prunable with `git worktree prune`
-      }
-    }
-  }
-}
-
-async function executeRaceRun(request) {
-  ensurePiAvailable(request.cwd);
-  if (!request.prompt) {
-    throw new Error("Provide a prompt for the race.");
-  }
-
-  const write = Boolean(request.write);
-  const racers = buildRacerLabels(request.raceModels);
-  const context = { write, repoRoot: null };
-  let dirtyWarning = null;
-  if (write) {
-    context.repoRoot = ensureGitRepository(request.cwd);
-    if (getWorkingTreeState(context.repoRoot).isDirty) {
-      dirtyWarning = "Working tree has uncommitted changes; racers start from HEAD and cannot see them.";
-      request.onProgress?.({ message: dirtyWarning, phase: "starting" });
-    }
-  }
-
-  const results = await Promise.all(racers.map((racer) => runRacer(request, racer, context)));
-
-  const workspaceRoot = resolveWorkspaceRoot(request.cwd);
-  const jobsDir = resolveJobsDir(workspaceRoot);
-  fs.mkdirSync(jobsDir, { recursive: true });
-
-  const racersPayload = results.map((result) => {
-    let patchFile = null;
-    if (result.patch && !result.patch.isEmpty) {
-      patchFile = path.join(jobsDir, `${request.jobId ?? "race"}-${result.slug}.patch`);
-      fs.writeFileSync(patchFile, result.patch.patch, "utf8");
-    }
-    return {
-      model: result.model,
-      ok: result.ok,
-      failure: result.failure,
-      piSessionId: result.piSessionId,
-      finalMessage: result.finalMessage,
-      patchFile,
-      patchStat: result.patch?.stat ?? null,
-      patchEmpty: result.patch ? result.patch.isEmpty : null
-    };
-  });
-
-  const okCount = racersPayload.filter((racer) => racer.ok).length;
-  const rendered = renderRaceResult(
-    { write, dirtyWarning, racers: racersPayload },
-    { taskSummary: shorten(request.prompt) }
-  );
-
-  return {
-    exitStatus: okCount > 0 ? 0 : 1,
-    piSessionId: null,
-    piSessionFile: null,
-    payload: { race: true, write, dirtyWarning, racers: racersPayload },
-    rendered,
-    summary: `Race: ${okCount}/${racersPayload.length} models ok`,
-    jobTitle: "Pi Race",
-    jobClass: "task",
-    write
-  };
-}
-
 async function executeTaskRun(request) {
-  if (Array.isArray(request.raceModels) && request.raceModels.length >= 2) {
-    return executeRaceRun(request);
-  }
-
   const workspaceRoot = resolveWorkspaceRoot(request.cwd);
   ensurePiAvailable(request.cwd);
 
@@ -797,7 +629,7 @@ async function executeTaskRun(request) {
   }
 
   const { result, attempts } = await runWithModelFallback(
-    buildModelChain(request.model ?? null, ENV_FALLBACK_MODELS),
+    buildModelChain(null, ENV_FALLBACK_MODELS),
     (attemptModel) =>
       runAppServerTurn(workspaceRoot, {
         resumeSessionId,
@@ -854,13 +686,7 @@ async function executeTaskRun(request) {
   };
 }
 
-function buildTaskRunMetadata({ prompt, resumeLast = false, raceModels = null }) {
-  if (Array.isArray(raceModels) && raceModels.length >= 2) {
-    return {
-      title: "Pi Race",
-      summary: `Race (${raceModels.length} models): ${shorten(prompt || "Task")}`
-    };
-  }
+function buildTaskRunMetadata({ prompt, resumeLast = false }) {
   const title = resumeLast ? "Pi Resume" : "Pi Task";
   const fallbackSummary = resumeLast ? DEFAULT_CONTINUE_PROMPT : "Task";
   return {
@@ -936,16 +762,14 @@ function buildTaskJob(workspaceRoot, taskMetadata, write) {
   });
 }
 
-function buildTaskRequest({ cwd, model, effort, prompt, write, resumeLast, jobId, raceModels = null }) {
+function buildTaskRequest({ cwd, effort, prompt, write, resumeLast, jobId }) {
   return {
     cwd,
-    model,
     effort,
     prompt,
     write,
     resumeLast,
-    jobId,
-    raceModels
+    jobId
   };
 }
 
@@ -1027,23 +851,13 @@ function enqueueBackgroundTask(cwd, job, request) {
 
 async function handleTask(argv) {
   const { options, positionals } = parseCommandInput(argv, {
-    valueOptions: ["model", "effort", "cwd", "prompt-file", "race", "out-file"],
-    booleanOptions: ["json", "write", "resume-last", "resume", "fresh", "background"],
-    aliasMap: {
-      m: "model"
-    }
+    valueOptions: ["effort", "cwd", "prompt-file", "out-file"],
+    booleanOptions: ["json", "write", "resume-last", "resume", "fresh", "background"]
   });
 
   const cwd = resolveCommandCwd(options);
   const workspaceRoot = resolveCommandWorkspace(options);
   const outFile = options["out-file"] ? path.resolve(cwd, options["out-file"]) : null;
-  const raceList = parseModelList(options.race);
-  if (raceList.length > 0 && options.model) {
-    throw new Error("Choose either --model <one> or --race <m1,m2,...>, not both.");
-  }
-  // A single --race entry is just a model pin; a race needs 2+.
-  const model = normalizeRequestedModel(options.model) ?? (raceList.length === 1 ? raceList[0] : null);
-  const raceModels = raceList.length >= 2 ? raceList : null;
   const effort = normalizeReasoningEffort(options.effort);
   const prompt = readTaskPrompt(cwd, options, positionals);
 
@@ -1052,57 +866,50 @@ async function handleTask(argv) {
   if (resumeLast && fresh) {
     throw new Error("Choose either --resume/--resume-last or --fresh.");
   }
-  if (raceModels && resumeLast) {
-    throw new Error("--race starts fresh racer sessions; it cannot be combined with --resume/--resume-last.");
-  }
   const write = Boolean(options.write);
   const taskMetadata = buildTaskRunMetadata({
     prompt,
-    resumeLast,
-    raceModels
+    resumeLast
   });
 
-  if (!raceModels) {
-    ensurePiAvailable(cwd);
-    requireTaskRequest(prompt, resumeLast);
-    const descriptors = [readGlobalControlDescriptor(workspaceRoot), readControlDescriptor(workspaceRoot)]
-      .filter(Boolean)
-      .filter((descriptor, index, all) => all.findIndex((candidate) =>
-        candidate.host === descriptor.host && candidate.port === descriptor.port && candidate.token === descriptor.token
-      ) === index);
-    if (descriptors.length > 0) {
-      let resumeSession = null;
-      if (resumeLast) {
-        resumeSession = resolveLatestTrackedTaskSession(workspaceRoot);
-        if (!resumeSession) {
-          throw new Error("No previous Pi task session was found for this repository.");
-        }
+  ensurePiAvailable(cwd);
+  requireTaskRequest(prompt, resumeLast);
+  const descriptors = [readGlobalControlDescriptor(workspaceRoot), readControlDescriptor(workspaceRoot)]
+    .filter(Boolean)
+    .filter((descriptor, index, all) => all.findIndex((candidate) =>
+      candidate.host === descriptor.host && candidate.port === descriptor.port && candidate.token === descriptor.token
+    ) === index);
+  if (descriptors.length > 0) {
+    let resumeSession = null;
+    if (resumeLast) {
+      resumeSession = resolveLatestTrackedTaskSession(workspaceRoot);
+      if (!resumeSession) {
+        throw new Error("No previous Pi task session was found for this repository.");
       }
-      for (const descriptor of descriptors) {
-        let payload;
-        try {
-          payload = await enqueueTaskInControlCenter(descriptor, {
-            cwd,
-            workspaceRoot,
-            originSessionId: getCurrentCallerSessionId(),
-            model,
-            effort,
-            prompt,
-            write,
-            resumeSession
-          });
-        } catch (error) {
-          if (error?.controlCenterReached && ![401, 403].includes(error.status)) throw error;
-          continue;
-        }
-        if (options.background) {
-          outputCommandResult(payload, renderQueuedTaskLaunch(payload), options.json);
-          return;
-        }
-
-        await waitForManagedJobAndOutput(cwd, payload, { json: options.json, outFile });
+    }
+    for (const descriptor of descriptors) {
+      let payload;
+      try {
+        payload = await enqueueTaskInControlCenter(descriptor, {
+          cwd,
+          workspaceRoot,
+          originSessionId: getCurrentCallerSessionId(),
+          effort,
+          prompt,
+          write,
+          resumeSession
+        });
+      } catch (error) {
+        if (error?.controlCenterReached && ![401, 403].includes(error.status)) throw error;
+        continue;
+      }
+      if (options.background) {
+        outputCommandResult(payload, renderQueuedTaskLaunch(payload), options.json);
         return;
       }
+
+      await waitForManagedJobAndOutput(cwd, payload, { json: options.json, outFile });
+      return;
     }
   }
 
@@ -1112,13 +919,11 @@ async function handleTask(argv) {
     const job = buildTaskJob(workspaceRoot, taskMetadata, write);
     const request = buildTaskRequest({
       cwd,
-      model,
       effort,
       prompt,
       write,
       resumeLast,
-      jobId: job.id,
-      raceModels
+      jobId: job.id
     });
     const { payload } = enqueueBackgroundTask(cwd, job, request);
     outputCommandResult(payload, renderQueuedTaskLaunch(payload), options.json);
@@ -1131,13 +936,11 @@ async function handleTask(argv) {
     (progress) =>
       executeTaskRun({
         cwd,
-        model,
         effort,
         prompt,
         write,
         resumeLast,
         jobId: job.id,
-        raceModels,
         onProgress: progress
       }),
     { json: options.json, outFile }

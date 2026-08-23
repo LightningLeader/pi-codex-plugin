@@ -9,7 +9,7 @@
 - Include task, parallel-task, continuation, status, watch, result, cancel,
   setup, and local Control Center skills.
 - Support foreground, background, and supervised-background tasks, along with
-  model selection, effort settings, model fallback, model racing, and output
-  files.
+  effort settings, model fallback, and output files. Task invocations use Pi's
+  configured default model and do not expose model selection or racing flags.
 - Store runtime state in a private, platform-standard `pi-codex-plugin` data
   directory, with `PI_CODEX_DATA_DIR` available as an explicit override.

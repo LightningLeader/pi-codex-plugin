@@ -142,55 +142,6 @@ export function renderOutFileSummary(execution, outFile) {
   return `${lines.join("\n")}\n`;
 }
 
-// race: { write, dirtyWarning, racers: [{ model, ok, finalMessage, failure,
-//   patchFile, patchStat, patchEmpty, piSessionId }] }
-export function renderRaceResult(race, meta) {
-  const okCount = race.racers.filter((racer) => racer.ok).length;
-  const lines = [
-    `# Pi Race (${race.racers.length} models)`,
-    "",
-    `Task: ${meta.taskSummary}`,
-    race.write
-      ? "Mode: write — each racer ran in an isolated git worktree created from HEAD"
-      : "Mode: read-only — racers analyzed the same working tree"
-  ];
-  if (race.dirtyWarning) {
-    lines.push(`Warning: ${race.dirtyWarning}`);
-  }
-  lines.push("");
-
-  for (const racer of race.racers) {
-    lines.push(`## ${racer.model} — ${racer.ok ? "ok" : "failed"}`);
-    if (!racer.ok) {
-      lines.push("", racer.failure || "Run failed.", "");
-      continue;
-    }
-    if (racer.finalMessage?.trim()) {
-      lines.push("", racer.finalMessage.trim(), "");
-    }
-    if (race.write) {
-      if (racer.patchEmpty || !racer.patchFile) {
-        lines.push("Patch: no file changes.", "");
-      } else {
-        lines.push("Patch:", "```text", racer.patchStat, "```", `Apply with: git apply ${racer.patchFile}`, "");
-      }
-    }
-    if (racer.piSessionId) {
-      lines.push(`Resume in Pi: pi --session ${racer.piSessionId}`, "");
-    }
-  }
-
-  if (okCount === 0) {
-    lines.push("All racers failed.");
-  } else if (race.write) {
-    lines.push("Pick a winner: review each patch, then apply exactly one with `git apply <patch>`.");
-  } else {
-    lines.push("Pick a winner: compare the answers above; agreement across models is a strong signal.");
-  }
-
-  return `${lines.join("\n").trimEnd()}\n`;
-}
-
 export function renderTaskResult(parsedResult, _meta) {
   const rawOutput = typeof parsedResult?.rawOutput === "string" ? parsedResult.rawOutput : "";
   if (rawOutput) {

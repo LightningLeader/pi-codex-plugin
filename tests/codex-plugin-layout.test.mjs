@@ -48,6 +48,7 @@ describe("Codex plugin skill layout", () => {
       "plugins/pi-codex/scripts/lib/review-cache.mjs",
       "plugins/pi-codex/scripts/lib/panel.mjs",
       "plugins/pi-codex/scripts/lib/shard.mjs",
+      "plugins/pi-codex/scripts/lib/race.mjs",
       "plugins/pi-codex/skills/rescue",
       "plugins/pi-codex/skills/parallel-rescue",
       "plugins/pi-codex/prompts/parallel-rescue.md"
@@ -75,6 +76,18 @@ describe("Codex plugin skill layout", () => {
     };
 
     for (const root of roots) visit(root);
+  });
+
+  it("does not expose task-level model selection or racing", () => {
+    const forbidden = /--model|--race|renderRaceResult|raceModels/;
+    const files = [
+      path.join(REPO_ROOT, "plugins", "pi-codex", "scripts", "pi-companion.mjs"),
+      path.join(REPO_ROOT, "plugins", "pi-codex", "skills", "task", "SKILL.md")
+    ];
+
+    for (const file of files) {
+      assert.doesNotMatch(fs.readFileSync(file, "utf8"), forbidden, file);
+    }
   });
 
   for (const skillName of PUBLIC_SKILLS) {

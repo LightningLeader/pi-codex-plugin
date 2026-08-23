@@ -10,10 +10,10 @@
 ## Requirements
 
 - Node.js 18.18 or later
-- A working `pi` CLI installation with at least one configured model provider
+- A working `pi` CLI installation with at least one configured provider
 - Optional: [`pi-subagents`](https://github.com/nicobailon/pi-subagents) for parallel tasks
 
-Pi can use any provider it supports. Provider names or model IDs such as Anthropic Claude are Pi configuration choices; the host integration itself targets Codex only.
+Pi uses its own configured default provider; the host integration itself targets Codex only.
 
 ## Install in Codex
 
@@ -25,7 +25,7 @@ codex plugin marketplace add ~/pi-codex-plugin
 codex plugin add pi-codex@lightningleader
 ```
 
-Start a new Codex thread after installation so the skills are loaded. Run `$pi-codex:setup` to verify Node.js, Pi, provider configuration, available models, and optional `pi-subagents` support.
+Start a new Codex thread after installation so the skills are loaded. Run `$pi-codex:setup` to verify Node.js, Pi, provider configuration, and optional `pi-subagents` support.
 
 ## Skills
 
@@ -45,12 +45,12 @@ Examples:
 
 ```text
 $pi-codex:task Investigate performance bottlenecks in the current implementation
-$pi-codex:task --write --background Implement the requested parser
+Ask $pi-codex:task to implement the requested parser in the background and attach a watcher
 $pi-codex:status task-...
 $pi-codex:result task-...
 ```
 
-Task supports read-only or `--write` work, foreground/background execution, model selection, effort settings, output files, and model races.
+Task supports read-only or writable work, foreground/background execution, supervised background jobs, effort settings, and output files. Users may describe these preferences naturally; Codex translates them into the required runtime options.
 
 ## Background jobs and live continuation
 
@@ -68,7 +68,7 @@ pi
 pi install npm:pi-subagents   # optional
 ```
 
-Model selection follows explicit command options first, then Pi's own configured defaults. This repository does not embed provider credentials. Keep API keys in the provider configuration mechanism recommended by Pi.
+`$pi-codex:task` uses Pi's configured default and does not expose `--model` or `--race`. Manually created Control Center sessions may still select a model. This repository does not embed provider credentials. Keep API keys in the provider configuration mechanism recommended by Pi.
 
 ## Runtime data
 

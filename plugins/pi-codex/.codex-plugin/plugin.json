@@ -1,6 +1,6 @@
 {
   "name": "pi-codex",
-  "version": "0.1.0+codex.20260823161040",
+  "version": "0.1.0+codex.20260823163712",
   "description": "Use the Pi coding agent from Codex for delegated tasks, supervised background work, live RPC continuation, and job control.",
   "author": {
     "name": "LightningLeader",
