@@ -138,7 +138,9 @@ describe("Pi Control Center", () => {
       assert.match(dashboardHtml, /<h2>会话<\/h2>/);
       assert.doesNotMatch(dashboardHtml, /插件任务/);
       assert.doesNotMatch(dashboardHtml, /id="job-list"/);
-      assert.match(dashboardHtml, /styles\.css\?v=layout-8/);
+      assert.match(dashboardHtml, /styles\.css\?v=layout-9/);
+      assert.match(dashboardHtml, /id="shutdown-control"/);
+      assert.match(dashboardHtml, /关闭 Control Center/);
 
       const dashboardScript = await request(base, token, "/app.js");
       assert.match(dashboardScript.text, /latestLines/);
@@ -155,6 +157,8 @@ describe("Pi Control Center", () => {
       assert.match(dashboardScript.text, /Job ID：/);
       assert.doesNotMatch(dashboardScript.text, /jobIdLabel\(item, true\).*rpcProcessLabel\(item, true\)/);
       assert.match(dashboardScript.text, /terminateSession/);
+      assert.match(dashboardScript.text, /\/api\/shutdown/);
+      assert.match(dashboardScript.text, /Pi Control Center 已关闭/);
       assert.doesNotMatch(dashboardScript.text, /nav-terminate/);
       assert.match(dashboardScript.text, /只读记录/);
       assert.match(dashboardScript.text, /sequence <= lastSequence/);
@@ -406,6 +410,57 @@ describe("Pi Control Center", () => {
       startControlServer({ cwd: process.cwd(), host: "0.0.0.0", port: 0, token: "x", registerGlobal: false }),
       /only binds to loopback/
     );
+  });
+
+  it("shuts down from the authenticated web API and closes live RPC sessions", async () => {
+    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "pi-control-shutdown-test-"));
+    const token = "test-shutdown-token";
+    const clients = [];
+    let resolveShutdown;
+    const shutdownComplete = new Promise((resolve) => { resolveShutdown = resolve; });
+    const control = await startControlServer({
+      cwd,
+      host: "127.0.0.1",
+      port: 0,
+      token,
+      registerGlobal: false,
+      onShutdown: resolveShutdown,
+      clientFactory: () => {
+        const client = new FakePiRpcClient(path.join(cwd, "session.jsonl"));
+        clients.push(client);
+        return client;
+      }
+    });
+    const base = `http://127.0.0.1:${control.descriptor.port}`;
+
+    try {
+      const created = await request(base, token, "/api/sessions", {
+        method: "POST",
+        body: JSON.stringify({ cwd, name: "Shutdown test" })
+      });
+      assert.equal(created.status, 201);
+      await waitFor(async () => {
+        const overview = await request(base, token, "/api/overview");
+        return overview.json().sessions[0]?.rpcProcessStatus === "running";
+      }, "shutdown test session startup");
+
+      const untrusted = await request(base, token, "/api/shutdown", {
+        method: "POST",
+        body: "{}",
+        headers: { origin: "https://example.com" }
+      });
+      assert.equal(untrusted.status, 403);
+
+      const shutdown = await request(base, token, "/api/shutdown", { method: "POST", body: "{}" });
+      assert.equal(shutdown.status, 202);
+      assert.deepEqual(shutdown.json(), { accepted: true, liveSessions: 1 });
+      await shutdownComplete;
+      assert.ok(clients[0].calls.some(([name]) => name === "close"));
+      await assert.rejects(fetch(`${base}/api/overview`));
+    } finally {
+      await control.close();
+      fs.rmSync(cwd, { recursive: true, force: true });
+    }
   });
 
   it("replays persisted events that were evicted from the live buffer", async () => {

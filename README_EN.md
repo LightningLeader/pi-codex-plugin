@@ -26,18 +26,6 @@
 
 Pi uses its own configured default provider. This plugin does not use Claude Code as its host.
 
-### Windows Note
-
-Pi requires a working Bash environment on Windows. Installing [Git for Windows](https://gitforwindows.org/) is recommended because it provides Git Bash. Pi normally discovers Git Bash automatically. If detection fails, set `shellPath` in `%USERPROFILE%\.pi\agent\settings.json` to the actual location of `bash.exe` on that machine, for example:
-
-```json
-{
-  "shellPath": "C:\\Program Files\\Git\\bin\\bash.exe"
-}
-```
-
-The installation location varies by user and installation method, so do not assume the example path always exists. Confirm the real `bash.exe` location first and see [Pi Windows Setup](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/windows.md) for complete instructions. This is a Windows runtime requirement of Pi itself, not an additional dependency introduced by this plugin. The plugin supports both an npm `pi.cmd` and a native `pi.exe` on PATH, and `$pi-codex:setup` checks whether Pi can find a Windows Bash installation.
-
 ## Installation
 
 ```bash
@@ -54,7 +42,7 @@ Before first use, check the environment:
 $pi-codex:setup
 ```
 
-This checks Node.js, the Pi CLI, provider credentials, Windows Bash (on Windows only), the session runtime directory, and the optional `pi-subagents` dependency.
+This checks Node.js, the Pi CLI, provider credentials, the session runtime directory, and the optional `pi-subagents` dependency.
 
 ## Five-Minute Quick Start
 
@@ -102,10 +90,10 @@ Codex translates “run in the background” and “enable subagent supervision�
 ### 5. Open the Control Center
 
 ```text
-$pi-codex:ui --background
+$pi-codex:ui
 ```
 
-Copy the token-bearing URL returned by the command and open it in a local browser. Regular tasks launched later through `$pi-codex:task` will prefer the running Control Center, allowing you to view and operate their Pi sessions live in the web UI.
+The Control Center starts in the background by default and immediately returns a token-bearing URL. Copy that URL and open it in a local browser. Regular tasks launched later through `$pi-codex:task` will prefer the running Control Center, allowing you to view and operate their Pi sessions live in the web UI. When finished, click “Shut Down Control Center” in the top bar.
 
 ## Skills Overview
 
@@ -399,10 +387,10 @@ The Control Center is a local-only Pi RPC web UI. It displays plugin jobs and ca
 
 ### Start, Inspect, and Stop
 
-Recommended background startup:
+Start it directly; the Control Center runs in the background by default and immediately returns its URL:
 
 ```text
-$pi-codex:ui --background
+$pi-codex:ui
 ```
 
 Inspect the current status and authenticated URL:
@@ -411,7 +399,7 @@ Inspect the current status and authenticated URL:
 $pi-codex:ui --status
 ```
 
-Stop the entire Control Center:
+Click “Shut Down Control Center” in the web top bar, or stop it from Codex:
 
 ```text
 $pi-codex:ui --stop
@@ -421,7 +409,9 @@ UI options:
 
 | Option | Default | Description |
 | --- | --- | --- |
-| `--background` | Off | Start the server in the background and immediately return its URL. Recommended for everyday use. |
+| No mode option | Background | Start the server and immediately return its URL. Everyday use needs no extra option. |
+| `--foreground` | Off | Run in the current terminal, mainly for startup diagnostics; press `Ctrl+C` to stop. |
+| `--background` | On | Compatibility alias for the default behavior. It cannot be combined with `--foreground`. |
 | `--status` | Off | Show the PID, workspace, and authenticated URL of the existing Control Center. |
 | `--stop` | Off | Stop the Control Center and the live Pi RPC sessions it maintains. |
 | `--cwd <directory>` | Current workspace | Select the workspace owned by this Control Center. |
@@ -451,7 +441,7 @@ The first visit must use the complete URL. The server stores the token in an Htt
 
 ### Page Areas
 
-1. **Top bar**: Shows the Control Center connection state and PID. “New Session” creates a Pi RPC session directly.
+1. **Top bar**: Shows the Control Center connection state and PID. “New Session” creates a Pi RPC session directly, and “Shut Down Control Center” stops the entire web service.
 2. **Left session list**: Combines live sessions and read-only job records by update time, showing status, Job ID, supervision state, and related information.
 3. **Session header**: Shows the working directory, actual model, read-only/writable mode, Job ID, RPC PID, and current phase.
 4. **Message history**: Displays user messages, thinking, Markdown responses, tool arguments, tool calls, and incremental output in real time.
@@ -490,6 +480,8 @@ After entering a message, click “Send” or press `Ctrl+Enter` / `Cmd+Enter`.
 
 “Delete Session” cannot be undone. If Pi is merely going in the wrong direction, prefer Steer. To stop the current generation but continue later, use Interrupt.
 
+“Shut Down Control Center” in the top bar is different from the per-session actions above. After confirmation, it terminates every live Pi RPC session maintained by the Control Center and then stops the web service. Closing the browser tab alone does not stop the background service.
+
 ### Read the Output
 
 - Thinking and tool cards can be expanded or collapsed separately.
@@ -507,7 +499,7 @@ After entering a message, click “Send” or press `Ctrl+Enter` / `Cmd+Enter`.
 ### Common UI Problems
 
 - **Page says unauthenticated**: Run `$pi-codex:ui --status` again and use the complete token-bearing URL it returns.
-- **Port is occupied**: Use `$pi-codex:ui --background --port 43121`.
+- **Port is occupied**: Use `$pi-codex:ui --port 43121`.
 - **`continue` reports loopback/EPERM**: Allow Codex commands to access local `127.0.0.1`; the plugin does not silently create a replacement process after failure.
 - **Page says RPC exited**: The record remains available, but the conversation cannot continue. Create a new session or launch the task again.
 - **Task does not appear in the UI**: Confirm that the UI is running, its workspace matches, and refresh the left-side list.
@@ -529,7 +521,6 @@ Without an explicit model, `$pi-codex:task` uses Pi's own default configuration.
 Set `PI_CODEX_DATA_DIR` to override the runtime data directory. Otherwise the default is:
 
 - Linux: `$XDG_STATE_HOME/pi-codex-plugin`, or `~/.local/state/pi-codex-plugin` when it is unset
-- macOS: `~/Library/Application Support/pi-codex-plugin`
 - Windows: `%LOCALAPPDATA%\pi-codex-plugin`
 
 Status, Job results, watcher records, logs, and Control Center descriptor files are stored below this directory by workspace. Where supported by the platform, directory permissions restrict access to the current user.

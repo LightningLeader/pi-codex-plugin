@@ -191,6 +191,7 @@ dialog .toggle { justify-content: flex-start; }
 @media (max-width: 620px) {
   .topbar { height: auto; min-height: 68px; padding: .8rem; }
   .topbar .eyebrow { display: none; }
+  .top-actions { flex-wrap: wrap; justify-content: flex-end; }
   body { overflow: auto; }
   .layout { display: block; height: auto; }
   .sidebar { max-height: 38vh; border-right: 0; border-bottom: 1px solid var(--border); }

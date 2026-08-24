@@ -16,3 +16,5 @@
 - Harden Windows support for npm `pi.cmd` and native `pi.exe` launchers,
   shell-safe RPC arguments, direct process-tree termination, Bash discovery,
   and Windows-safe race worktree paths.
+- Start the Control Center in the background by default, retain an explicit
+  foreground diagnostics mode, and allow authenticated shutdown from the web UI.

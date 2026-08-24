@@ -95,7 +95,7 @@ function printUsage() {
       "  node scripts/pi-companion.mjs watch <job-id> [--timeout-ms <ms>] [--poll-interval-ms <ms>] [--json]",
       "  node scripts/pi-companion.mjs result [job-id] [--json] [--out-file <path>]",
       "  node scripts/pi-companion.mjs cancel [job-id] [--json]",
-      "  node scripts/pi-companion.mjs ui [--background|--stop|--status] [--host 127.0.0.1] [--port 43120]"
+      "  node scripts/pi-companion.mjs ui [--foreground|--stop|--status] [--host 127.0.0.1] [--port 43120]"
     ].join("\n")
   );
 }
@@ -303,8 +303,11 @@ async function waitForControlDescriptor(cwd, pid, timeoutMs = 5000) {
 async function handleControlUi(argv) {
   const { options } = parseCommandInput(argv, {
     valueOptions: ["cwd", "host", "port", "token"],
-    booleanOptions: ["json", "background", "stop", "status", "allow-remote"]
+    booleanOptions: ["json", "background", "foreground", "stop", "status", "allow-remote"]
   });
+  if (options.background && options.foreground) {
+    throw new Error("--background and --foreground cannot be used together.");
+  }
   const cwd = resolveCommandCwd(options);
   const workspaceRoot = resolveWorkspaceRoot(cwd);
   const descriptorCandidates = [readGlobalControlDescriptor(workspaceRoot), readControlDescriptor(workspaceRoot)]
@@ -360,12 +363,13 @@ async function handleControlUi(argv) {
   const host = options.host ?? "127.0.0.1";
   const port = Number(options.port ?? 43120);
   const token = options.token ?? randomBytes(24).toString("hex");
-  if (options.background) {
+  if (!options.foreground) {
     const child = spawn(
       process.execPath,
       [
         process.argv[1],
         "ui",
+        "--foreground",
         "--cwd",
         workspaceRoot,
         "--host",
@@ -398,7 +402,8 @@ async function handleControlUi(argv) {
     host,
     port,
     token,
-    allowRemote: Boolean(options["allow-remote"])
+    allowRemote: Boolean(options["allow-remote"]),
+    onShutdown: () => process.exit(0)
   });
   outputCommandResult(control.descriptor, renderControlDescriptor(control.descriptor), options.json);
   const shutdown = async () => {

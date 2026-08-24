@@ -672,6 +672,20 @@ async function handleApi(context, request, response, url) {
     return;
   }
 
+  if (request.method === "POST" && url.pathname === "/api/shutdown") {
+    if (context.shutdownRequested) {
+      jsonResponse(response, 202, { accepted: true, alreadyRequested: true });
+      return;
+    }
+    context.shutdownRequested = true;
+    response.once("finish", () => context.performShutdown?.());
+    jsonResponse(response, 202, {
+      accepted: true,
+      liveSessions: [...context.sessions.values()].filter(sessionProcessLive).length
+    });
+    return;
+  }
+
   if (request.method === "POST" && url.pathname === "/api/sessions") {
     const body = await readJsonBody(request);
     const session = startManagedSession(context, body);
@@ -1074,6 +1088,8 @@ export async function startControlServer(options = {}) {
     port: Number(options.port ?? 43120),
     token: options.token ?? randomBytes(24).toString("hex"),
     sessions: new Map(),
+    shutdownRequested: false,
+    performShutdown: null,
     createClient: options.clientFactory ?? ((cwd, clientOptions) => new PiRpcClient(cwd, clientOptions))
   };
   if (!Number.isInteger(context.port) || context.port < 0 || context.port > 65535) {
@@ -1110,14 +1126,29 @@ export async function startControlServer(options = {}) {
   });
   const descriptor = writeDescriptor(context, server);
 
-  const close = async () => {
-    for (const session of context.sessions.values()) {
-      session.closedByUser = true;
-      await session.client.close().catch(() => {});
-    }
-    await new Promise((resolve) => server.close(resolve));
-    removeControlDescriptorIfOwned(context.descriptorFile, process.pid);
-    if (context.globalDescriptorFile) removeControlDescriptorIfOwned(context.globalDescriptorFile, process.pid);
+  let closePromise = null;
+  const close = () => {
+    if (closePromise) return closePromise;
+    closePromise = (async () => {
+      for (const session of context.sessions.values()) {
+        session.closedByUser = true;
+        await session.client.close().catch(() => {});
+        for (const subscriber of session.subscribers) subscriber.end();
+        session.subscribers.clear();
+      }
+      const serverClosed = new Promise((resolve) => server.close(resolve));
+      server.closeIdleConnections?.();
+      await serverClosed;
+      removeControlDescriptorIfOwned(context.descriptorFile, process.pid);
+      if (context.globalDescriptorFile) removeControlDescriptorIfOwned(context.globalDescriptorFile, process.pid);
+    })();
+    return closePromise;
+  };
+  context.performShutdown = () => {
+    setImmediate(async () => {
+      await close().catch(() => {});
+      await Promise.resolve(options.onShutdown?.()).catch(() => {});
+    });
   };
 
   return { server, context, descriptor, close };

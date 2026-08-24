@@ -26,18 +26,6 @@
 
 Pi 使用其自身配置的默认提供商。本插件不会把 Claude Code 当作宿主。
 
-### Windows 用户注意
-
-Pi 在 Windows 上需要可用的 Bash 环境，推荐安装 [Git for Windows](https://gitforwindows.org/) 提供的 Git Bash。Pi 通常会自动查找 Git Bash；如果未能正确识别，请在 `%USERPROFILE%\.pi\agent\settings.json` 中把 `shellPath` 设置为本机 `bash.exe` 的实际路径，例如：
-
-```json
-{
-  "shellPath": "C:\\Program Files\\Git\\bin\\bash.exe"
-}
-```
-
-安装位置可能因用户和安装方式而不同，不要直接假定示例路径一定存在。请先确认实际的 `bash.exe` 位置；完整说明参见 [Pi Windows Setup](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/windows.md)。这是 Pi 自身的 Windows 运行要求，不是本插件额外引入的依赖。插件会同时兼容 PATH 中的 npm `pi.cmd` 和原生 `pi.exe`，并由 `$pi-codex:setup` 检查 Pi 能否找到 Windows Bash。
-
 ## 安装
 
 ```bash
@@ -54,7 +42,7 @@ codex plugin add pi-codex@lightningleader
 $pi-codex:setup
 ```
 
-该命令会检查 Node.js、Pi CLI、提供商凭据、Windows Bash（仅 Windows）、会话运行目录以及可选的 `pi-subagents`。
+该命令会检查 Node.js、Pi CLI、提供商凭据、会话运行目录以及可选的 `pi-subagents`。
 
 ## 五分钟快速上手
 
@@ -102,10 +90,10 @@ Codex 会把“后台运行”和“开启子智能体监督”转换为对应�
 ### 5. 打开 Control Center
 
 ```text
-$pi-codex:ui --background
+$pi-codex:ui
 ```
 
-复制命令返回的带 token URL，在本机浏览器打开。随后通过 `$pi-codex:task` 发出的普通任务会优先连接正在运行的 Control Center，因此可以在网页中实时查看和操作对应的 Pi 会话。
+Control Center 默认在后台启动并立即返回带 token 的 URL。复制该 URL 在本机浏览器打开。随后通过 `$pi-codex:task` 发出的普通任务会优先连接正在运行的 Control Center，因此可以在网页中实时查看和操作对应的 Pi 会话。使用结束后，可点击网页顶部的“关闭 Control Center”。
 
 ## Skills 一览
 
@@ -399,10 +387,10 @@ Control Center 是仅在本机运行的 Pi RPC Web UI。它既能显示插件任
 
 ### 启动、查询和停止
 
-推荐后台启动：
+直接启动即可；Control Center 默认在后台运行并立即返回 URL：
 
 ```text
-$pi-codex:ui --background
+$pi-codex:ui
 ```
 
 查询当前状态和认证 URL：
@@ -411,7 +399,7 @@ $pi-codex:ui --background
 $pi-codex:ui --status
 ```
 
-停止整个 Control Center：
+可以从网页顶部点击“关闭 Control Center”，也可以使用命令停止：
 
 ```text
 $pi-codex:ui --stop
@@ -421,7 +409,9 @@ UI 参数：
 
 | 参数 | 默认值 | 说明 |
 | --- | --- | --- |
-| `--background` | 关闭 | 后台启动服务器并立即返回 URL。推荐日常使用。 |
+| 无运行模式参数 | 后台 | 启动服务器并立即返回 URL。日常使用不需要额外参数。 |
+| `--foreground` | 关闭 | 在当前终端前台运行，主要用于查看启动诊断；按 `Ctrl+C` 停止。 |
+| `--background` | 开启 | 兼容旧用法；与无参数启动行为相同。不能和 `--foreground` 同时使用。 |
 | `--status` | 关闭 | 查看现有 Control Center 的 PID、工作区和认证 URL。 |
 | `--stop` | 关闭 | 停止 Control Center，以及由它维护的在线 Pi RPC 会话。 |
 | `--cwd <目录>` | 当前工作区 | 指定 Control Center 所属工作区。 |
@@ -451,7 +441,7 @@ Open: http://127.0.0.1:43120/?token=<secret>
 
 ### 页面区域
 
-1. **顶部栏**：显示 Control Center 连接状态和 PID；“新建会话”用于直接创建 Pi RPC 会话。
+1. **顶部栏**：显示 Control Center 连接状态和 PID；“新建会话”用于直接创建 Pi RPC 会话；“关闭 Control Center”用于结束整个网页服务。
 2. **左侧会话列表**：按更新时间合并显示在线会话和只读任务记录，并显示状态、Job ID、监督状态等信息。
 3. **会话标题区**：显示工作目录、实际模型、只读/可写模式、Job ID、RPC PID 和当前阶段。
 4. **消息记录区**：实时呈现用户消息、thinking、Markdown 回复、工具参数、工具调用与增量输出。
@@ -490,6 +480,8 @@ Open: http://127.0.0.1:43120/?token=<secret>
 
 “删除会话”不可恢复。若只是觉得 Pi 当前方向不对，优先使用 Steer；若要停止当前生成但稍后继续，使用“中断”。
 
+顶部栏的“关闭 Control Center”不同于上述单会话操作：点击后会显示确认提示，并结束 Control Center 维护的所有在线 Pi RPC 会话，然后关闭网页服务。仅关闭浏览器标签页不会停止后台服务。
+
 ### 阅读输出
 
 - Thinking 和工具卡片可分别展开或折叠。
@@ -507,7 +499,7 @@ Open: http://127.0.0.1:43120/?token=<secret>
 ### UI 常见问题
 
 - **页面显示未认证**：重新运行 `$pi-codex:ui --status`，使用返回的完整带 token URL。
-- **端口已被占用**：使用 `$pi-codex:ui --background --port 43121`。
+- **端口已被占用**：使用 `$pi-codex:ui --port 43121`。
 - **`continue` 报 loopback/EPERM**：允许 Codex 命令访问本机 `127.0.0.1`；插件不会在失败时偷偷创建替代进程。
 - **页面显示 RPC 已退出**：记录仍可查看，但无法继续对话；创建新会话或重新发布任务。
 - **任务没有出现在 UI**：确认 UI 已启动、工作区匹配，并刷新左侧列表。
@@ -529,7 +521,6 @@ pi install npm:pi-subagents  # 可选
 可以设置 `PI_CODEX_DATA_DIR` 覆盖运行数据目录，否则默认使用：
 
 - Linux：`$XDG_STATE_HOME/pi-codex-plugin`；未设置时为 `~/.local/state/pi-codex-plugin`
-- macOS：`~/Library/Application Support/pi-codex-plugin`
 - Windows：`%LOCALAPPDATA%\pi-codex-plugin`
 
 状态、Job 结果、watcher 记录、日志和 Control Center 描述文件会按工作区保存在该目录下。在平台支持时，目录权限会限制为仅当前用户可访问。

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="dark" />
     <title>Pi Control Center</title>
-    <link rel="stylesheet" href="/styles.css?v=layout-8" />
+    <link rel="stylesheet" href="/styles.css?v=layout-9" />
   </head>
   <body>
     <header class="topbar">
@@ -16,6 +16,7 @@
       <div class="top-actions">
         <span id="connection" class="status-chip offline">正在连接</span>
         <button id="new-session" class="primary">新建会话</button>
+        <button id="shutdown-control" class="danger" title="关闭 Control Center，并结束它维护的所有在线 Pi RPC 会话。">关闭 Control Center</button>
       </div>
     </header>
 
@@ -138,6 +139,6 @@
       </form>
     </dialog>
 
-    <script type="module" src="/app.js"></script>
+    <script type="module" src="/app.js?v=shutdown-1"></script>
   </body>
 </html>

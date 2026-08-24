@@ -25,7 +25,7 @@ const state = {
 
 const $ = (selector) => document.querySelector(selector);
 const elements = {
-  connection: $("#connection"), sessionList: $("#session-list"),
+  connection: $("#connection"), shutdownControl: $("#shutdown-control"), sessionList: $("#session-list"),
   sessionCount: $("#session-count"), empty: $("#empty-state"), sessionView: $("#session-view"),
   jobView: $("#job-view"), sessionTitle: $("#session-title"), sessionStatus: $("#session-status"),
   sessionMeta: $("#session-meta"), stream: $("#event-stream"), input: $("#message-input"),
@@ -942,6 +942,31 @@ async function openJob(id) {
 }
 
 $("#new-session").addEventListener("click", () => elements.dialog.showModal());
+elements.shutdownControl.addEventListener("click", async () => {
+  const liveSessions = state.sessions.filter(canTerminateSession).length;
+  const detail = liveSessions
+    ? `当前有 ${liveSessions} 个在线 Pi RPC 会话，它们也会被结束。`
+    : "当前没有在线 Pi RPC 会话。";
+  if (!window.confirm(`关闭整个 Pi Control Center？\n\n${detail}`)) return;
+  elements.shutdownControl.disabled = true;
+  elements.shutdownControl.textContent = "正在关闭…";
+  try {
+    await api("/api/shutdown", { method: "POST", body: "{}" });
+    state.source?.close();
+    clearInterval(state.poll);
+    clearTimeout(state.overviewTimer);
+    statusChip(elements.connection, "closed");
+    elements.sessionView.classList.add("hidden");
+    elements.jobView.classList.add("hidden");
+    elements.empty.classList.remove("hidden");
+    elements.empty.querySelector("h2").textContent = "Pi Control Center 已关闭";
+    elements.empty.querySelector("p").textContent = "需要再次使用时，重新调用 $pi-codex:ui。";
+  } catch (error) {
+    elements.shutdownControl.disabled = false;
+    elements.shutdownControl.textContent = "关闭 Control Center";
+    window.alert(`关闭失败：${error.message}`);
+  }
+});
 $("#close-dialog").addEventListener("click", () => elements.dialog.close());
 $("#cancel-dialog").addEventListener("click", () => elements.dialog.close());
 $("#refresh").addEventListener("click", refreshOverview);
