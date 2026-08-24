@@ -60,7 +60,7 @@ describe("resolvePluginDataDir", () => {
   it("uses LOCALAPPDATA on Windows", () => {
     assert.equal(
       resolvePluginDataDir({ platform: "win32", env: { LOCALAPPDATA: "C:\\Users\\user\\AppData\\Local" }, homeDir: "C:\\Users\\user" }),
-      path.join("C:\\Users\\user\\AppData\\Local", "pi-codex-plugin")
+      path.win32.join("C:\\Users\\user\\AppData\\Local", "pi-codex-plugin")
     );
   });
 });

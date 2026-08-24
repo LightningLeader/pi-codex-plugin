@@ -27,20 +27,21 @@ export function defaultState() {
 export function resolvePluginDataDir(options = {}) {
   const env = options.env ?? process.env;
   const platform = options.platform ?? process.platform;
+  const pathApi = platform === "win32" ? path.win32 : path.posix;
   const homeDir = options.homeDir ?? os.homedir();
   const override = env[PLUGIN_DATA_ENV]?.trim();
   if (override) {
-    return path.resolve(options.cwd ?? process.cwd(), override);
+    return pathApi.resolve(options.cwd ?? process.cwd(), override);
   }
   if (platform === "win32") {
-    const localAppData = env.LOCALAPPDATA?.trim() || path.join(homeDir, "AppData", "Local");
-    return path.join(localAppData, PLUGIN_DATA_DIR_NAME);
+    const localAppData = env.LOCALAPPDATA?.trim() || pathApi.join(homeDir, "AppData", "Local");
+    return pathApi.join(localAppData, PLUGIN_DATA_DIR_NAME);
   }
   if (platform === "darwin") {
-    return path.join(homeDir, "Library", "Application Support", PLUGIN_DATA_DIR_NAME);
+    return pathApi.join(homeDir, "Library", "Application Support", PLUGIN_DATA_DIR_NAME);
   }
-  const stateHome = env.XDG_STATE_HOME?.trim() || path.join(homeDir, ".local", "state");
-  return path.join(stateHome, PLUGIN_DATA_DIR_NAME);
+  const stateHome = env.XDG_STATE_HOME?.trim() || pathApi.join(homeDir, ".local", "state");
+  return pathApi.join(stateHome, PLUGIN_DATA_DIR_NAME);
 }
 
 export function resolveStateDir(cwd, options = {}) {
