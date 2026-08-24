@@ -40,7 +40,7 @@ describe("Pi Control Center CLI", { concurrency: false }, () => {
         [COMPANION, "ui", "--cwd", workspace, "--stop"],
         { cwd: workspace, env, timeout: 10000 }
       ).catch(() => {});
-      fs.rmSync(root, { recursive: true, force: true });
+      fs.rmSync(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     }
   });
 

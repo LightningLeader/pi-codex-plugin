@@ -42,7 +42,7 @@ codex plugin add pi-codex@lightningleader
 $pi-codex:setup
 ```
 
-该命令会检查 Node.js、Pi CLI、提供商凭据、会话运行目录以及可选的 `pi-subagents`。
+该命令会检查 Node.js、Pi CLI、提供商凭据、会话运行目录以及可选的 `pi-subagents`，并默认启动或复用当前工作区的 Control Center、返回带 token 的本地 URL。如只需检查环境，可明确要求使用 `--no-ui`。
 
 ## 五分钟快速上手
 
@@ -87,19 +87,19 @@ $pi-codex:result task-...
 
 Codex 会把“后台运行”和“开启子智能体监督”转换为对应执行选项：后台启动任务，再附加一个轻量 watcher。主对话可以继续做其他事情；watcher 只在任务结束时报告简短状态，不会自动读取大段结果。
 
-### 5. 打开 Control Center
+### 5. 查看 Control Center
 
 ```text
-$pi-codex:ui
+$pi-codex:ui --status
 ```
 
-Control Center 默认在后台启动并立即返回带 token 的 URL。复制该 URL 在本机浏览器打开。随后通过 `$pi-codex:task` 发出的普通任务会优先连接正在运行的 Control Center，因此可以在网页中实时查看和操作对应的 Pi 会话。使用结束后，可点击网页顶部的“关闭 Control Center”。
+`$pi-codex:setup` 已默认启动 Control Center；使用 `$pi-codex:ui --status` 可再次取得带 token 的 URL。复制该 URL 在本机浏览器打开。随后通过 `$pi-codex:task` 发出的普通任务会优先连接正在运行的 Control Center，因此可以在网页中实时查看和操作对应的 Pi 会话。使用结束后，可点击网页顶部的“关闭 Control Center”。
 
 ## Skills 一览
 
 | Skill | 用途 |
 | --- | --- |
-| `$pi-codex:setup` | 检查 Pi、模型提供商和可选依赖 |
+| `$pi-codex:setup` | 检查 Pi 环境并默认启动或复用 Control Center；可用 `--no-ui` 关闭自动启动 |
 | `$pi-codex:task` | 发布一个调查或实现任务 |
 | `$pi-codex:parallel-task` | 通过 `pi-subagents` 并行执行多个独立任务 |
 | `$pi-codex:continue` | 在原来的在线 Pi RPC 进程中继续任务 |

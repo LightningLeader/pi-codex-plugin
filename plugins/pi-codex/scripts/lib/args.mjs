@@ -28,6 +28,13 @@ export function parseArgs(argv, config = {}) {
       const [rawKey, inlineValue] = token.slice(2).split("=", 2);
       const key = aliasMap[rawKey] ?? rawKey;
 
+      const negatedRawKey = rawKey.startsWith("no-") ? rawKey.slice(3) : null;
+      const negatedKey = negatedRawKey ? aliasMap[negatedRawKey] ?? negatedRawKey : null;
+      if (negatedKey && booleanOptions.has(negatedKey) && inlineValue === undefined) {
+        options[negatedKey] = false;
+        continue;
+      }
+
       if (booleanOptions.has(key)) {
         options[key] = inlineValue === undefined ? true : inlineValue !== "false";
         continue;

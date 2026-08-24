@@ -42,7 +42,7 @@ Before first use, check the environment:
 $pi-codex:setup
 ```
 
-This checks Node.js, the Pi CLI, provider credentials, the session runtime directory, and the optional `pi-subagents` dependency.
+This checks Node.js, the Pi CLI, provider credentials, the session runtime directory, and the optional `pi-subagents` dependency. It also starts or reuses the Control Center for the current workspace by default and returns its token-bearing local URL. Explicitly request `--no-ui` to run checks only.
 
 ## Five-Minute Quick Start
 
@@ -87,19 +87,19 @@ Ask $pi-codex:task to implement the pagination endpoint and run tests. Run it in
 
 Codex translates “run in the background” and “enable subagent supervision” into the corresponding execution options: it starts the task in the background and attaches a lightweight watcher. The main conversation can continue with other work. The watcher reports a short status only when the task ends and does not automatically load a large result.
 
-### 5. Open the Control Center
+### 5. Inspect the Control Center
 
 ```text
-$pi-codex:ui
+$pi-codex:ui --status
 ```
 
-The Control Center starts in the background by default and immediately returns a token-bearing URL. Copy that URL and open it in a local browser. Regular tasks launched later through `$pi-codex:task` will prefer the running Control Center, allowing you to view and operate their Pi sessions live in the web UI. When finished, click “Shut Down Control Center” in the top bar.
+`$pi-codex:setup` starts the Control Center by default. Use `$pi-codex:ui --status` to retrieve its token-bearing URL again. Copy that URL and open it in a local browser. Regular tasks launched later through `$pi-codex:task` will prefer the running Control Center, allowing you to view and operate their Pi sessions live in the web UI. When finished, click “Shut Down Control Center” in the top bar.
 
 ## Skills Overview
 
 | Skill | Purpose |
 | --- | --- |
-| `$pi-codex:setup` | Check Pi, model providers, and optional dependencies |
+| `$pi-codex:setup` | Check Pi and start or reuse the Control Center by default; use `--no-ui` to opt out |
 | `$pi-codex:task` | Launch an investigation or implementation task |
 | `$pi-codex:parallel-task` | Run multiple independent tasks in parallel through `pi-subagents` |
 | `$pi-codex:continue` | Continue a task in its original live Pi RPC process |

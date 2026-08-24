@@ -125,6 +125,10 @@ export function renderSetupReport(report) {
     ""
   );
 
+  if (report.controlCenter?.status === "disabled") {
+    lines.push("- Control Center: disabled (--no-ui)", "");
+  }
+
   if (report.nextSteps.length > 0) {
     lines.push("Next steps:");
     for (const step of report.nextSteps) {

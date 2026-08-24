@@ -88,7 +88,7 @@ function printUsage() {
   console.log(
     [
       "Usage:",
-      "  node scripts/pi-companion.mjs setup [--json]",
+      "  node scripts/pi-companion.mjs setup [--no-ui] [--json]",
       "  node scripts/pi-companion.mjs task [--background] [--write] [--resume-last|--resume|--fresh] [--model <model>|--race <m1,m2,...>] [--effort <off|minimal|low|medium|high|xhigh|max>] [--out-file <path>] [prompt]",
       "  node scripts/pi-companion.mjs continue [--background] [--job <job-id>] [--out-file <path>] [prompt]",
       "  node scripts/pi-companion.mjs status [job-id] [--all] [--json]",
@@ -300,6 +300,98 @@ async function waitForControlDescriptor(cwd, pid, timeoutMs = 5000) {
   return null;
 }
 
+async function requestControlCenterShutdown(descriptor) {
+  try {
+    const response = await fetch(`http://${descriptor.host}:${descriptor.port}/api/shutdown`, {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${descriptor.token}`,
+        "content-type": "application/json"
+      },
+      body: "{}",
+      signal: AbortSignal.timeout(3000)
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+async function waitForProcessExit(pid, timeoutMs = 5000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (!isProcessRunning(pid)) return true;
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  return !isProcessRunning(pid);
+}
+
+async function findReachableControlDescriptor(workspaceRoot) {
+  const descriptorCandidates = [readGlobalControlDescriptor(workspaceRoot), readControlDescriptor(workspaceRoot)]
+    .filter(Boolean)
+    .filter((descriptor, index, all) => all.findIndex((candidate) =>
+      candidate.host === descriptor.host && candidate.port === descriptor.port && candidate.token === descriptor.token
+    ) === index);
+  for (const descriptor of descriptorCandidates) {
+    if (await controlDescriptorReachable(descriptor)) {
+      return descriptor;
+    }
+  }
+  return null;
+}
+
+function spawnBackgroundControlCenter(workspaceRoot, { host, port, token, allowRemote = false }) {
+  const child = spawn(
+    process.execPath,
+    [
+      process.argv[1],
+      "ui",
+      "--foreground",
+      "--cwd",
+      workspaceRoot,
+      "--host",
+      host,
+      "--port",
+      String(port),
+      "--token",
+      token,
+      ...(allowRemote ? ["--allow-remote"] : [])
+    ],
+    {
+      cwd: workspaceRoot,
+      env: process.env,
+      detached: true,
+      stdio: "ignore",
+      windowsHide: true
+    }
+  );
+  child.unref();
+  return child;
+}
+
+async function ensureBackgroundControlCenter(workspaceRoot, options = {}) {
+  const existing = await findReachableControlDescriptor(workspaceRoot);
+  if (existing) return existing;
+
+  const host = options.host ?? "127.0.0.1";
+  const requestedPort = Number(options.port ?? 43120);
+  const ports = options.fallbackToEphemeral && requestedPort !== 0
+    ? [requestedPort, 0]
+    : [requestedPort];
+  for (const port of ports) {
+    const token = options.token ?? randomBytes(24).toString("hex");
+    const child = spawnBackgroundControlCenter(workspaceRoot, {
+      host,
+      port,
+      token,
+      allowRemote: Boolean(options.allowRemote)
+    });
+    const descriptor = await waitForControlDescriptor(workspaceRoot, child.pid);
+    if (descriptor) return descriptor;
+  }
+  throw new Error("Pi Control Center did not start. Run the ui command in the foreground for diagnostics.");
+}
+
 async function handleControlUi(argv) {
   const { options } = parseCommandInput(argv, {
     valueOptions: ["cwd", "host", "port", "token"],
@@ -310,18 +402,7 @@ async function handleControlUi(argv) {
   }
   const cwd = resolveCommandCwd(options);
   const workspaceRoot = resolveWorkspaceRoot(cwd);
-  const descriptorCandidates = [readGlobalControlDescriptor(workspaceRoot), readControlDescriptor(workspaceRoot)]
-    .filter(Boolean)
-    .filter((descriptor, index, all) => all.findIndex((candidate) =>
-      candidate.host === descriptor.host && candidate.port === descriptor.port && candidate.token === descriptor.token
-    ) === index);
-  let existing = null;
-  for (const descriptor of descriptorCandidates) {
-    if (await controlDescriptorReachable(descriptor)) {
-      existing = descriptor;
-      break;
-    }
-  }
+  const existing = await findReachableControlDescriptor(workspaceRoot);
   const existingRunning = Boolean(existing);
 
   if (options.status) {
@@ -343,7 +424,12 @@ async function handleControlUi(argv) {
       );
       return;
     }
-    const result = terminateProcessTree(existing.pid);
+    const shutdownRequested = await requestControlCenterShutdown(existing);
+    const exitedGracefully = shutdownRequested && await waitForProcessExit(existing.pid);
+    const result = exitedGracefully
+      ? { attempted: true, delivered: true, method: "control-api" }
+      : terminateProcessTree(existing.pid);
+    if (!exitedGracefully) await waitForProcessExit(existing.pid);
     const descriptorFile = resolveControlDescriptorFile(workspaceRoot);
     removeControlDescriptorIfOwned(descriptorFile, existing.pid);
     removeControlDescriptorIfOwned(resolveGlobalControlDescriptorFile(workspaceRoot), existing.pid);
@@ -364,35 +450,12 @@ async function handleControlUi(argv) {
   const port = Number(options.port ?? 43120);
   const token = options.token ?? randomBytes(24).toString("hex");
   if (!options.foreground) {
-    const child = spawn(
-      process.execPath,
-      [
-        process.argv[1],
-        "ui",
-        "--foreground",
-        "--cwd",
-        workspaceRoot,
-        "--host",
-        host,
-        "--port",
-        String(port),
-        "--token",
-        token,
-        ...(options["allow-remote"] ? ["--allow-remote"] : [])
-      ],
-      {
-        cwd: workspaceRoot,
-        env: process.env,
-        detached: true,
-        stdio: "ignore",
-        windowsHide: true
-      }
-    );
-    child.unref();
-    const descriptor = await waitForControlDescriptor(workspaceRoot, child.pid);
-    if (!descriptor) {
-      throw new Error("Pi Control Center did not start. Run the ui command in the foreground for diagnostics.");
-    }
+    const descriptor = await ensureBackgroundControlCenter(workspaceRoot, {
+      host,
+      port,
+      token,
+      allowRemote: Boolean(options["allow-remote"])
+    });
     outputCommandResult(descriptor, renderControlDescriptor(descriptor), options.json);
     return;
   }
@@ -552,12 +615,29 @@ async function buildSetupReport(cwd) {
 async function handleSetup(argv) {
   const { options } = parseCommandInput(argv, {
     valueOptions: ["cwd"],
-    booleanOptions: ["json"]
+    booleanOptions: ["json", "ui"]
   });
 
   const cwd = resolveCommandCwd(options);
+  const workspaceRoot = resolveWorkspaceRoot(cwd);
   const finalReport = await buildSetupReport(cwd);
-  outputResult(options.json ? finalReport : renderSetupReport(finalReport), options.json);
+  if (options.ui === false) {
+    finalReport.controlCenter = { enabled: false, status: "disabled" };
+    outputResult(options.json ? finalReport : renderSetupReport(finalReport), options.json);
+    return;
+  }
+
+  const descriptor = await ensureBackgroundControlCenter(workspaceRoot, {
+    fallbackToEphemeral: true
+  });
+  finalReport.controlCenter = {
+    enabled: true,
+    status: "running",
+    ...descriptor,
+    url: `http://${descriptor.host}:${descriptor.port}/?token=${encodeURIComponent(descriptor.token)}`
+  };
+  const rendered = `${renderSetupReport(finalReport).trimEnd()}\n\n${renderControlDescriptor(descriptor)}`;
+  outputResult(options.json ? finalReport : rendered, options.json);
 }
 
 function ensurePiAvailable(cwd) {

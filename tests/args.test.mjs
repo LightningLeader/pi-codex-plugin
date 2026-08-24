@@ -15,11 +15,19 @@ describe("parseArgs", () => {
       assert.deepEqual(positionals, []);
     });
 
-    it("parses --no-flag equivalent as false", () => {
+    it("parses an explicit false value", () => {
       const { options, positionals: _positionals } = parseArgs(["--verbose=false"], {
         booleanOptions: ["verbose"],
       });
       assert.equal(options.verbose, false);
+    });
+
+    it("parses --no-flag as false", () => {
+      const { options, positionals } = parseArgs(["--no-verbose"], {
+        booleanOptions: ["verbose"],
+      });
+      assert.equal(options.verbose, false);
+      assert.deepEqual(positionals, []);
     });
 
     it("parses short boolean flag", () => {
