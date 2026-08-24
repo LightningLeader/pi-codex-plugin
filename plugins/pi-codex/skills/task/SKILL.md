@@ -1,6 +1,6 @@
 ---
 name: task
-description: "Delegate an investigation or implementation task to the Pi coding agent. Use when the user asks Codex to hand work to Pi, including foreground, background, supervised-background, and effort modes."
+description: "Delegate an investigation or implementation task to the Pi coding agent. Use when the user asks Codex to hand work to Pi, including foreground, background, supervised-background, model, effort, and race modes."
 ---
 
 # Pi Task
@@ -12,12 +12,22 @@ Run `node <plugin-root>/scripts/pi-companion.mjs task` with the user's task as t
 - Add `--write` for implementation or file-changing work. Omit it for investigation, explanation, diagnosis, review, or any explicitly read-only request. The runtime default without this flag is read-only.
 - Add `--background` when the user asks to run asynchronously or in the background.
 - Treat requests for supervision, a watcher, or completion notification as supervised background mode even when the user does not name `--supervised`.
+- Translate a request to use one specific Pi model into `--model <model>`.
+- Translate a request for multiple named models to solve and compare the same task into `--race <model1,model2,...>`. Use `parallel-task` instead when the tasks differ.
 - Translate an explicit request for low, normal, high, or maximum reasoning into the closest supported `--effort` value; otherwise leave Pi's default unchanged.
 - Use `--resume-last` when the user explicitly wants the newest persisted Pi task history for the current repository, but not when they require the exact original live process.
-- Pass through requested `--effort`, `--out-file`, `--fresh`, or legacy resume options.
+- Pass through requested `--model`, `--race`, `--effort`, `--out-file`, `--fresh`, or legacy resume options.
 - Prefer the `pi-codex:continue` skill when the user wants to reuse the exact original live RPC process. Legacy `--resume-last` starts a replacement RPC from persisted Pi history.
 
 Return Pi's output without paraphrasing. A background launch should return its job ID for later status checks.
+
+## Model selection and race mode
+
+- Omit both flags to use Pi's configured default model.
+- `--model` and `--race` are mutually exclusive. A one-model `--race` is treated as `--model`; two or more models run concurrently.
+- A race always starts fresh sessions and cannot be combined with `--resume` or `--resume-last`.
+- A read-only race lets every model inspect the current working tree. A writable race starts each model from `HEAD` in an isolated Git worktree, so uncommitted local changes are not visible. It saves each successful change set as a separate patch and never applies a winner automatically.
+- Race execution bypasses the Control Center task queue, but foreground, background, and supervised-background launches remain available.
 
 ## Supervised background mode
 

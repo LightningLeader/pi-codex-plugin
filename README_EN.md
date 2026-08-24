@@ -12,6 +12,7 @@
 - Move code investigations into an independent Pi context instead of filling the current Codex conversation
 - Let Pi analyze a repository in read-only mode, or explicitly authorize it to modify files and run tests
 - Run long tasks in the background, then check status, wait for completion, retrieve results, or cancel them
+- Pin one Pi model or race multiple models on the same task and compare their results
 - Select a reasoning effort level appropriate for the task
 - Distribute multiple independent subtasks in parallel through `pi-subagents`
 - View thinking, responses, tool calls, and terminal output live in a browser
@@ -138,6 +139,8 @@ Codex translates your wording into the appropriate execution behavior:
 | “Fix, implement, modify files, or add tests” | Automatically enable writable mode |
 | “Run in the background and do not block this conversation” | Start in the background and return a Job ID |
 | “Enable subagent supervision and notify me when finished” | Run in the background and attach a watcher |
+| “Use model X” | Pin that Pi model with `--model` |
+| “Have models X and Y do the same task and compare them” | Run the same task concurrently with `--race` |
 | “Analyze carefully and use higher reasoning effort” | Use a higher `effort` level |
 | “Save the complete result to a file” | Use output-file mode |
 | “Continue the previous live Pi task” | Prefer `$pi-codex:continue` |
@@ -169,6 +172,8 @@ The parameter form is useful for automation, exact reproduction, or experienced 
 | `--background` | Off | Start in the background and immediately return a Job ID. Useful for long tasks. |
 | `--supervised` | Off | A Codex orchestration option that implicitly enables background mode and attaches a watcher. It is not an underlying Pi CLI option. |
 | `--poll-interval-ms <milliseconds>` | `10000` | Watcher polling interval, minimum `100`. The default is normally appropriate; very small values increase local polling. Use with `--supervised` or `$pi-codex:watch`. |
+| `--model <model>` / `-m <model>` | Pi default model | Pin one Pi model for this task. The identifier must match the local Pi configuration. |
+| `--race <model1,model2,...>` | Off | Run the same task concurrently with two or more Pi models and aggregate their results. One entry degrades to `--model`. |
 | `--effort <level>` | Pi default | Reasoning effort: `off`, `minimal`, `low`, `medium`, `high`, `xhigh`, or `max`; `none` aliases `off`. Pi rejects unsupported levels. |
 | `--out-file <path>` | Off | For a foreground task, write the full output to a file and return only a summary to Codex. For a background task, use `$pi-codex:result --out-file` after completion. |
 | `--resume-last` / `--resume` | Off | Continue from the most recent resumable Pi disk session in the current repository, but start a replacement RPC process. Use `$pi-codex:continue` if the original process must be reused. |
@@ -180,6 +185,9 @@ The parameter form is useful for automation, exact reproduction, or experienced 
 ### Option Combination Constraints
 
 - `--fresh` cannot be combined with `--resume`/`--resume-last`.
+- `--model` and `--race` are mutually exclusive. `--race` cannot be combined with `--resume`/`--resume-last`, because each racer starts a fresh session.
+- In a read-only race, all models inspect the current working tree concurrently. In a writable race, each model starts in an isolated Git worktree at the current `HEAD`, so uncommitted changes are invisible; the plugin saves a patch for each successful candidate but never selects or applies a winner automatically.
+- A race bypasses the Control Center task queue, but foreground, background, and supervised-background execution remain available.
 - At most two watchers named with the `pi_watch_` prefix can be attached at once. If no agent slot is available, the Pi task still runs but is not supervised.
 - `--out-file` is best suited to foreground tasks. For a background task, save the Job ID first and then use `$pi-codex:result <job-id> --out-file <path>` after completion.
 
@@ -275,25 +283,41 @@ Call $pi-codex:status to check the progress of task-....
 Call $pi-codex:result to retrieve the final result of task-....
 ```
 
-### Example 5: Use Higher Reasoning Effort for a Complex Task
+### Example 5: Pin One Pi Model
+
+```text
+Ask $pi-codex:task to use the openai/gpt-5.2 model to analyze the cache invalidation problem in read-only mode. List the evidence and recommended fixes without modifying files.
+```
+
+Codex translates the explicit model choice into `--model`. The model name is only an example; use an identifier listed as locally available by `$pi-codex:setup`.
+
+### Example 6: Race Multiple Models on the Same Task
+
+```text
+Ask $pi-codex:task to have openai/gpt-5.2 and google/gemini-3-pro analyze the database migration approach at the same time. Run read-only, compare their risk assessments and recommendations, and do not modify files.
+```
+
+This uses `--race` to run the same task concurrently. If file changes are requested, every model implements in an isolated worktree and produces a separate patch for you or Codex to review before applying one.
+
+### Example 7: Use Higher Reasoning Effort for a Complex Task
 
 ```text
 Ask $pi-codex:task to deeply analyze concurrency problems in the order state machine using higher reasoning effort. Start with a read-only investigation, list the evidence and candidate approaches, and do not modify code.
 ```
 
-### Example 6: Save a Long Result to a File
+### Example 8: Save a Long Result to a File
 
 ```text
 Ask $pi-codex:task to comprehensively analyze the security boundaries of the authentication module in read-only mode without modifying files. Save the complete report to reports/security-analysis.md and return only a summary in this conversation.
 ```
 
-### Example 7: Attach Supervision to an Existing Job
+### Example 9: Attach Supervision to an Existing Job
 
 ```text
 Call $pi-codex:watch to supervise task-... and check every 15 seconds. Do not block the main conversation; tell me whether the result is available when the task ends.
 ```
 
-### Example 8: Continue the Original Live Pi Process
+### Example 10: Continue the Original Live Pi Process
 
 ```text
 Call $pi-codex:continue to continue the live Pi session associated with task-.... Ask it to rerun the boundary tests after the recent changes and explain any failures.
@@ -301,7 +325,7 @@ Call $pi-codex:continue to continue the live Pi session associated with task-...
 
 `continue` requires the original Control Session and RPC process to still be online and idle. If not, it fails explicitly and does not silently start a replacement process.
 
-### Example 9: Resume the Most Recent Disk Session
+### Example 11: Resume the Most Recent Disk Session
 
 ```text
 Ask $pi-codex:task to load the most recent resumable Pi task history for the current repository and continue improving the previous fix plan. Produce a plan only and do not modify files.
@@ -309,7 +333,7 @@ Ask $pi-codex:task to load the most recent resumable Pi task history for the cur
 
 This wording uses `resume-last`. It restores Pi's persistent history but does not guarantee reuse of the original RPC PID. Use `$pi-codex:continue` when strict process reuse is required.
 
-### Example 10: Run Multiple Independent Tasks in Parallel
+### Example 12: Run Multiple Independent Tasks in Parallel
 
 First install the optional dependency:
 
@@ -328,7 +352,7 @@ Call $pi-codex:parallel-task to run these three independent tasks in parallel:
 
 Do not send sequentially dependent steps to `parallel-task`, such as “first change the database schema, then modify the API based on the new schema.”
 
-### Example 11: Cancel a Background Job
+### Example 13: Cancel a Background Job
 
 ```text
 Call $pi-codex:cancel to cancel task-.... If it has already finished, report its current state and do not start another task.
@@ -420,6 +444,7 @@ The first visit must use the complete URL. The server stores the token in an Htt
 ### Relationship Between the UI and `$pi-codex:task`
 
 - While the Control Center is running, `$pi-codex:task` prefers to create interactive sessions through it.
+- `--race` bypasses the Control Center queue and runs its models concurrently in the plugin runtime. A single-model `--model` task can still use the Control Center.
 - Foreground tasks still wait for the final result; background tasks still return a Job ID immediately.
 - `$pi-codex:continue` reuses only an original RPC process that is still live and idle in the Control Center.
 - If you want to continue later in the exact same process, start the UI before launching the task.
@@ -438,7 +463,7 @@ Click “New Session” and fill in:
 
 - **Name**: Used in the left-side list; does not affect task behavior.
 - **Working directory**: The directory Pi operates on; it is created automatically if it does not exist.
-- **Model**: Optional and available only for manually created UI sessions. Leave blank to use Pi's default configuration. It is not a `$pi-codex:task` option.
+- **Model**: Optional for manually created UI sessions; leave blank to use Pi's default configuration. A task launched through `$pi-codex:task` can also select a model in natural language or with `--model`.
 - **Thinking level**: Optional; leave blank to use Pi's default.
 - **Initial task**: The first task sent to Pi immediately after creating the session.
 - **Read-only session**: When selected, enables only the `read`, `grep`, `find`, and `ls` tools. When clear, Pi can use its normal toolset.
@@ -497,7 +522,7 @@ pi
 pi install npm:pi-subagents  # optional
 ```
 
-`$pi-codex:task` always uses Pi's own default configuration and does not expose `--model` or `--race`. A model may still be selected for a manually created Control Center UI session. This repository does not store provider credentials; configure them with Pi's recommended `/login`, environment-variable, or `~/.pi/agent/models.json` mechanism.
+Without an explicit model, `$pi-codex:task` uses Pi's own default configuration. Use `--model` to pin one model or `--race` to run the same task concurrently with multiple configured models. You may also set `PI_PLUGIN_FALLBACK_MODELS=model1,model2` as the automatic retry chain after a failure. This repository does not store provider credentials; configure them with Pi's recommended `/login`, environment-variable, or `~/.pi/agent/models.json` mechanism.
 
 ## Runtime Data
 

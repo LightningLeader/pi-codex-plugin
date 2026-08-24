@@ -1,7 +1,7 @@
 {
   "name": "pi-codex",
-  "version": "0.1.0+codex.20260823163712",
-  "description": "Use the Pi coding agent from Codex for delegated tasks, supervised background work, live RPC continuation, and job control.",
+  "version": "0.1.0+codex.20260824044924",
+  "description": "Use the Pi coding agent from Codex for delegated tasks, model racing, supervised background work, live RPC continuation, and job control.",
   "author": {
     "name": "LightningLeader",
     "url": "https://github.com/LightningLeader"
@@ -19,11 +19,12 @@
   "interface": {
     "displayName": "Pi for Codex",
     "shortDescription": "Delegate coding work to Pi.",
-    "longDescription": "Run Pi investigation and implementation tasks, inspect background jobs, operate the RPC Control Center, and continue work in the exact original live Pi process.",
+    "longDescription": "Run Pi investigation and implementation tasks with explicit models or multi-model racing, inspect background jobs, operate the RPC Control Center, and continue work in the exact original live Pi process.",
     "developerName": "LightningLeader",
     "category": "Developer Tools",
     "capabilities": [
       "Task delegation",
+      "Multi-model racing",
       "Supervised background tasks",
       "RPC control"
     ],
