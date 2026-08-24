@@ -1,17 +1,23 @@
 import { spawnSync } from "node:child_process";
 import process from "node:process";
 
+import { buildSafeWindowsShellCommand } from "./windows-command.mjs";
+
 export function runCommand(command, args = [], options = {}) {
-  const result = spawnSync(command, args, {
+  const shell = options.shell ?? (process.platform === "win32");
+  const spawnOptions = {
     cwd: options.cwd,
     env: options.env,
     encoding: "utf8",
     input: options.input,
     maxBuffer: options.maxBuffer,
     stdio: options.stdio ?? "pipe",
-    shell: options.shell ?? (process.platform === "win32" ? (process.env.SHELL || true) : false),
+    shell,
     windowsHide: true
-  });
+  };
+  const result = process.platform === "win32" && shell
+    ? spawnSync(buildSafeWindowsShellCommand(command, args), spawnOptions)
+    : spawnSync(command, args, spawnOptions);
 
   return {
     command,
@@ -94,7 +100,8 @@ export function terminateProcessTree(pid, options = {}) {
   if (platform === "win32") {
     const result = runCommandImpl("taskkill", ["/PID", String(pid), "/T", "/F"], {
       cwd: options.cwd,
-      env: options.env
+      env: options.env,
+      shell: false
     });
 
     if (!result.error && result.status === 0) {

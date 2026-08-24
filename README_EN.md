@@ -36,7 +36,7 @@ Pi requires a working Bash environment on Windows. Installing [Git for Windows](
 }
 ```
 
-The installation location varies by user and installation method, so do not assume the example path always exists. Confirm the real `bash.exe` location first and see [Pi Windows Setup](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/windows.md) for complete instructions. This is a Windows runtime requirement of Pi itself, not an additional dependency introduced by this plugin.
+The installation location varies by user and installation method, so do not assume the example path always exists. Confirm the real `bash.exe` location first and see [Pi Windows Setup](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/windows.md) for complete instructions. This is a Windows runtime requirement of Pi itself, not an additional dependency introduced by this plugin. The plugin supports both an npm `pi.cmd` and a native `pi.exe` on PATH, and `$pi-codex:setup` checks whether Pi can find a Windows Bash installation.
 
 ## Installation
 
@@ -54,7 +54,7 @@ Before first use, check the environment:
 $pi-codex:setup
 ```
 
-This checks Node.js, the Pi CLI, provider credentials, the session runtime directory, and the optional `pi-subagents` dependency.
+This checks Node.js, the Pi CLI, provider credentials, Windows Bash (on Windows only), the session runtime directory, and the optional `pi-subagents` dependency.
 
 ## Five-Minute Quick Start
 
@@ -548,6 +548,8 @@ Status, Job results, watcher records, logs, and Control Center descriptor files 
 npm run check-version
 npm test
 ```
+
+GitHub Actions runs the same test suite on Ubuntu and Windows with Node.js 22 and 24.
 
 Main directories:
 

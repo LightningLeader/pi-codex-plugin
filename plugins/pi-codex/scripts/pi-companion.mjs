@@ -14,6 +14,7 @@ import {
   DEFAULT_CONTINUE_PROMPT,
   getPiAvailability,
   getPiModelsStatus,
+  getWindowsBashStatus,
   getPiSubagentsStatus,
   getSessionRuntimeStatus,
   runAppServerTurn
@@ -502,6 +503,7 @@ async function buildSetupReport(cwd) {
   const workspaceRoot = resolveWorkspaceRoot(cwd);
   const nodeStatus = binaryAvailable("node", ["--version"], { cwd });
   const piStatus = getPiAvailability(cwd);
+  const windowsBashStatus = getWindowsBashStatus();
   const modelsStatus = getPiModelsStatus(process.env);
   const subagentsStatus = getPiSubagentsStatus();
 
@@ -525,11 +527,15 @@ async function buildSetupReport(cwd) {
       "Set a provider API key (e.g. `export DEEPSEEK_API_KEY=...`), run `/login` inside pi, or write `~/.pi/agent/models.json` per pi docs."
     );
   }
+  if (windowsBashStatus && !windowsBashStatus.available) {
+    nextSteps.push(`Install Git Bash or configure Pi's shellPath. (${windowsBashStatus.detail})`);
+  }
   return {
-    ready: nodeStatus.available && piStatus.available && modelsStatus.available,
+    ready: nodeStatus.available && piStatus.available && modelsStatus.available && windowsBashStatus?.available !== false,
     node: nodeStatus,
     pi: piStatus,
     models: modelsStatus,
+    windowsBash: windowsBashStatus,
     subagents: subagentsStatus,
     availableModels,
     fallbackModels: ENV_FALLBACK_MODELS,

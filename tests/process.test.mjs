@@ -329,12 +329,16 @@ describe("terminateProcessTree", () => {
     const WIN_OPTS = { platform: "win32", escalateAfterMs: 0 };
 
     it("returns delivered when taskkill succeeds", () => {
-      const runCommandImpl = (_cmd, _args) => ({
-        error: null,
-        status: 0,
-        stdout: "",
-        stderr: "",
-      });
+      let invocation = null;
+      const runCommandImpl = (command, args, options) => {
+        invocation = { command, args, options };
+        return {
+          error: null,
+          status: 0,
+          stdout: "",
+          stderr: "",
+        };
+      };
       const result = terminateProcessTree(1234, {
         ...WIN_OPTS,
         runCommandImpl,
@@ -343,6 +347,8 @@ describe("terminateProcessTree", () => {
       assert.equal(result.attempted, true);
       assert.equal(result.delivered, true);
       assert.equal(result.method, "taskkill");
+      assert.deepEqual(invocation.args, ["/PID", "1234", "/T", "/F"]);
+      assert.equal(invocation.options.shell, false);
     });
 
     it("returns delivered:false when taskkill reports missing process", () => {

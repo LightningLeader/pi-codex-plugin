@@ -26,6 +26,22 @@ describe("sanitizeModelForPath", () => {
     assert.equal(sanitizeModelForPath("///"), "model");
     assert.equal(sanitizeModelForPath(null), "model");
   });
+
+  it("avoids traversal segments and Windows reserved device names", () => {
+    assert.equal(sanitizeModelForPath("."), "model");
+    assert.equal(sanitizeModelForPath(".."), "model");
+    assert.equal(sanitizeModelForPath("CON"), "CON-model");
+    assert.equal(sanitizeModelForPath("nul.txt"), "nul.txt-model");
+    assert.equal(sanitizeModelForPath("model."), "model");
+  });
+
+  it("bounds long slugs and keeps their hash distinct", () => {
+    const first = sanitizeModelForPath(`provider/${"x".repeat(300)}`);
+    const second = sanitizeModelForPath(`provider/${"x".repeat(299)}y`);
+    assert.equal(first.length <= 64, true);
+    assert.equal(second.length <= 64, true);
+    assert.notEqual(first, second);
+  });
 });
 
 describe("buildRacerLabels", () => {
@@ -39,6 +55,13 @@ describe("buildRacerLabels", () => {
 
   it("handles an empty list", () => {
     assert.deepEqual(buildRacerLabels([]), []);
+  });
+
+  it("keeps collision suffixes within the Windows-safe length bound", () => {
+    const long = "x".repeat(100);
+    const labels = buildRacerLabels([long, `${long}/`, `${long}:`]);
+    assert.equal(new Set(labels.map(({ slug }) => slug)).size, 3);
+    assert.equal(labels.every(({ slug }) => slug.length <= 64), true);
   });
 });
 

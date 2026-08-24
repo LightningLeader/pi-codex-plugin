@@ -94,6 +94,10 @@ export function renderSetupReport(report) {
 
   lines.push(`- models: ${report.models.detail}`);
 
+  if (report.windowsBash) {
+    lines.push(`- bash: ${report.windowsBash.detail}`);
+  }
+
   if (report.availableModels.length > 0) {
     lines.push(`- available models: ${report.availableModels.join(", ")}`);
   }

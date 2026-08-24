@@ -13,3 +13,6 @@
   fallback, and output files.
 - Store runtime state in a private, platform-standard `pi-codex-plugin` data
   directory, with `PI_CODEX_DATA_DIR` available as an explicit override.
+- Harden Windows support for npm `pi.cmd` and native `pi.exe` launchers,
+  shell-safe RPC arguments, direct process-tree termination, Bash discovery,
+  and Windows-safe race worktree paths.

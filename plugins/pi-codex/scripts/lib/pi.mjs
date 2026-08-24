@@ -4,7 +4,7 @@ import path from "node:path";
 import process from "node:process";
 
 import { PiRpcClient } from "./pi-rpc.mjs";
-import { binaryAvailable } from "./process.mjs";
+import { binaryAvailable, runCommand } from "./process.mjs";
 
 const TASK_THREAD_PREFIX = "Pi Companion Task";
 const DEFAULT_CONTINUE_PROMPT =
@@ -518,6 +518,71 @@ export function getPiAvailability(cwd) {
     detail: versionStatus.detail,
     version,
     versionWarning
+  };
+}
+
+function expandWindowsHomePath(value, homeDir) {
+  if (value === "~") return homeDir;
+  if (value.startsWith("~/") || value.startsWith("~\\")) {
+    return path.win32.join(homeDir, value.slice(2));
+  }
+  return value;
+}
+
+function isLegacyWslBashPath(value) {
+  return /^[a-z]:\\windows\\(?:system32|sysnative)\\bash\.exe$/i.test(String(value).replace(/\//g, "\\"));
+}
+
+export function getWindowsBashStatus(options = {}) {
+  const platform = options.platform ?? process.platform;
+  if (platform !== "win32") return null;
+
+  const env = options.env ?? process.env;
+  const homeDir = options.homeDir ?? os.homedir();
+  const exists = options.existsImpl ?? fs.existsSync;
+  const readFile = options.readFileImpl ?? fs.readFileSync;
+  const runCommandImpl = options.runCommandImpl ?? runCommand;
+  const piDir = env.PI_CODING_AGENT_DIR || path.win32.join(homeDir, ".pi", "agent");
+  const settingsPath = path.win32.join(piDir, "settings.json");
+
+  try {
+    const settings = JSON.parse(readFile(settingsPath, "utf8"));
+    if (typeof settings?.shellPath === "string" && settings.shellPath.trim()) {
+      const configuredPath = expandWindowsHomePath(settings.shellPath.trim(), homeDir);
+      return exists(configuredPath)
+        ? { available: true, path: configuredPath, source: "settings", detail: `${configuredPath} (settings.json)` }
+        : { available: false, path: configuredPath, source: "settings", detail: `configured shellPath not found: ${configuredPath}` };
+    }
+  } catch {
+    // Missing or malformed settings are handled by the normal discovery path.
+  }
+
+  const candidates = [
+    env.ProgramFiles && path.win32.join(env.ProgramFiles, "Git", "bin", "bash.exe"),
+    env["ProgramFiles(x86)"] && path.win32.join(env["ProgramFiles(x86)"], "Git", "bin", "bash.exe")
+  ].filter(Boolean);
+  for (const candidate of candidates) {
+    if (exists(candidate)) {
+      return { available: true, path: candidate, source: "git-bash", detail: `${candidate} (Git Bash)` };
+    }
+  }
+
+  const whereResult = runCommandImpl("where.exe", ["bash.exe"], { env, shell: false });
+  if (!whereResult.error && whereResult.status === 0) {
+    const candidate = whereResult.stdout
+      .split(/\r?\n/)
+      .map((value) => value.trim())
+      .find((value) => value && !isLegacyWslBashPath(value) && exists(value));
+    if (candidate) {
+      return { available: true, path: candidate, source: "path", detail: `${candidate} (PATH)` };
+    }
+  }
+
+  return {
+    available: false,
+    path: null,
+    source: null,
+    detail: `not found; install Git Bash or set shellPath in ${settingsPath}`
   };
 }
 

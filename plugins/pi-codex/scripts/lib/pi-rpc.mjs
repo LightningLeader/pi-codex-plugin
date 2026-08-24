@@ -3,6 +3,7 @@ import process from "node:process";
 import { StringDecoder } from "node:string_decoder";
 
 import { terminateProcessTree } from "./process.mjs";
+import { buildSafeWindowsShellCommand } from "./windows-command.mjs";
 
 const CHANNEL_DEFAULTS = {
   command: "pi",
@@ -18,12 +19,22 @@ const STDERR_MAX_BYTES = 64 * 1024;
 const KILL_GRACE_MS = 5000;
 const SIGTERM_DELAY_MS = 50;
 
-export function buildPiRpcSpawnConfig(platform = process.platform, command = null) {
+export function buildPiRpcSpawnConfig(platform = process.platform, command = null, args = CHANNEL_DEFAULTS.modeArgs) {
   const isWindows = platform === "win32";
+  if (isWindows) {
+    return {
+      command: buildSafeWindowsShellCommand(command ?? "pi", args),
+      args: [],
+      detached: false,
+      shell: true,
+      windowsHide: true
+    };
+  }
   return {
-    command: command ?? (isWindows ? "pi.cmd" : "pi"),
+    command: command ?? "pi",
+    args: [...args],
     detached: false,
-    shell: isWindows,
+    shell: false,
     windowsHide: true
   };
 }
@@ -32,13 +43,14 @@ export class PiRpcClient {
   constructor(cwd, options = {}) {
     this.cwd = cwd;
     this.options = options;
-    const spawnConfig = buildPiRpcSpawnConfig(process.platform, options.command);
-    this.command = spawnConfig.command;
-    this.spawnConfig = spawnConfig;
-    this.spawnArgs = [
+    const requestedArgs = [
       ...CHANNEL_DEFAULTS.modeArgs,
       ...(options.spawnArgs ?? CHANNEL_DEFAULTS.extraArgs)
     ];
+    const spawnConfig = buildPiRpcSpawnConfig(process.platform, options.command, requestedArgs);
+    this.command = spawnConfig.command;
+    this.spawnConfig = spawnConfig;
+    this.spawnArgs = spawnConfig.args;
     this.env = options.env ?? process.env;
     this.proc = null;
     // Requests are sent one-at-a-time (serialized by the companion flow), so
@@ -72,14 +84,17 @@ export class PiRpcClient {
 
   async start() {
     try {
-      this.proc = spawn(this.command, this.spawnArgs, {
+      const spawnOptions = {
         cwd: this.cwd,
         detached: this.spawnConfig.detached,
         env: this.env,
         stdio: ["pipe", "pipe", "pipe"],
         shell: this.spawnConfig.shell,
         windowsHide: this.spawnConfig.windowsHide
-      });
+      };
+      this.proc = this.spawnConfig.shell
+        ? spawn(this.command, spawnOptions)
+        : spawn(this.command, this.spawnArgs, spawnOptions);
     } catch (error) {
       this._handleExit(error);
       throw error;

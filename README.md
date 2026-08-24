@@ -36,7 +36,7 @@ Pi 在 Windows 上需要可用的 Bash 环境，推荐安装 [Git for Windows](h
 }
 ```
 
-安装位置可能因用户和安装方式而不同，不要直接假定示例路径一定存在。请先确认实际的 `bash.exe` 位置；完整说明参见 [Pi Windows Setup](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/windows.md)。这是 Pi 自身的 Windows 运行要求，不是本插件额外引入的依赖。
+安装位置可能因用户和安装方式而不同，不要直接假定示例路径一定存在。请先确认实际的 `bash.exe` 位置；完整说明参见 [Pi Windows Setup](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/windows.md)。这是 Pi 自身的 Windows 运行要求，不是本插件额外引入的依赖。插件会同时兼容 PATH 中的 npm `pi.cmd` 和原生 `pi.exe`，并由 `$pi-codex:setup` 检查 Pi 能否找到 Windows Bash。
 
 ## 安装
 
@@ -54,7 +54,7 @@ codex plugin add pi-codex@lightningleader
 $pi-codex:setup
 ```
 
-该命令会检查 Node.js、Pi CLI、提供商凭据、会话运行目录以及可选的 `pi-subagents`。
+该命令会检查 Node.js、Pi CLI、提供商凭据、Windows Bash（仅 Windows）、会话运行目录以及可选的 `pi-subagents`。
 
 ## 五分钟快速上手
 
@@ -548,6 +548,8 @@ pi install npm:pi-subagents  # 可选
 npm run check-version
 npm test
 ```
+
+GitHub Actions 会在 Ubuntu 和 Windows 上分别使用 Node.js 22、24 运行同一套测试。
 
 主要目录：
 
